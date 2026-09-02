@@ -52,6 +52,55 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
+html {
+  scrollbar-gutter: stable;
+  scrollbar-color: #079c87 #e8f0f3;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: #e8f0f3;
+}
+
+*::-webkit-scrollbar-thumb {
+  min-height: 44px;
+  border: 2px solid #e8f0f3;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #0fbd9c 0%, #087f9b 52%, #073b83 100%);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #08a987 0%, #086d8f 52%, #062f71 100%);
+}
+
+*::-webkit-scrollbar-corner {
+  background: #e8f0f3;
+}
+
+.bq-scroll-dark {
+  scrollbar-color: #19c5a7 rgb(255 255 255 / 8%);
+}
+
+.bq-scroll-dark::-webkit-scrollbar-track {
+  background: rgb(255 255 255 / 8%);
+}
+
+.bq-scroll-dark::-webkit-scrollbar-thumb {
+  border-color: transparent;
+  background: linear-gradient(180deg, #22d3ae 0%, #0ba2a6 100%);
+  background-clip: padding-box;
+}
+
+.bq-scroll-dark::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 :root {
   --background: oklch(0.975 0.01 240);
   --foreground: oklch(0.24 0.065 255);

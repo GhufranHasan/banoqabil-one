@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { Toaster } from '@/components/ui/toast';
+import { ErrorHandlingProvider } from '@/components/error-handling-provider';
 import './globals.css';
 
 const geistSans = Geist({
@@ -17,6 +19,9 @@ export const metadata: Metadata = {
   title: 'Bano Qabil One — Operations Platform',
   description:
     'Intelligent student operations, allocation and capacity management for the Bano Qabil network.',
+  icons: {
+    icon: '/bano-qabil-official.png',
+  },
   openGraph: {
     title: 'Bano Qabil One',
     description: 'Every learner. Every seat. One intelligent platform.',
@@ -40,7 +45,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <Toaster><ErrorHandlingProvider>{children}</ErrorHandlingProvider></Toaster>
       </body>
     </html>
   );

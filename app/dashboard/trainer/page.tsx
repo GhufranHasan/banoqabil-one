@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function TrainerDashboard() {
-  redirect('/dashboard/coordinator');
+  redirect('/dashboard/teacher');
 }
