@@ -1,13 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
   CalendarDays,
   CheckCircle2,
   Clock3,
   LockKeyhole,
+  RefreshCw,
   Send,
+  ShieldAlert,
   Sparkles,
   TicketCheck,
   UserRoundCheck,
@@ -16,83 +18,281 @@ import {
 } from 'lucide-react';
 
 import { AppShell, PageSearch } from '@/components/app-shell';
-import { FilterSelect, PageHeader, Panel, StatCard } from '@/components/dashboard-ui';
+import { PageHeader, Panel, StatCard } from '@/components/dashboard-ui';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { toast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
 
-const initialRecovery = [
-  { initials: 'HA', name: 'Hassan Ali', id: 'STU-01234', course: 'Web Development', batch: 'WD-11 (Morning)', reason: 'Low Attendance', attendance: '62%', last: 'May 15' },
-  { initials: 'MS', name: 'Maha Shahid', id: 'STU-00987', course: 'Graphic Design', batch: 'GD-09 (Evening)', reason: 'Fee Not Paid', attendance: '—', last: 'Apr 28' },
-  { initials: 'AT', name: 'Ali Tayyab', id: 'STU-01102', course: 'Data Analytics', batch: 'DA-07 (Weekend)', reason: 'Irregular', attendance: '48%', last: 'May 10' },
-  { initials: 'IQ', name: 'Iqra Qureshi', id: 'STU-01011', course: 'UI/UX Design', batch: 'UX-06 (Morning)', reason: 'Low Attendance', attendance: '55%', last: 'May 12' },
-  { initials: 'FN', name: 'Fahad Nazir', id: 'STU-00876', course: 'Digital Marketing', batch: 'DM-10 (Evening)', reason: 'Fee Not Paid', attendance: '—', last: 'Apr 25' },
-];
-const initialWaitlist = [
-  { rank: 1, initials: 'AK', name: 'Ayesha Khan', id: 'WT-00654', score: 94, fit: 'Excellent' },
-  { rank: 2, initials: 'MR', name: 'M. Rehan', id: 'WT-00621', score: 88, fit: 'Very Good' },
-  { rank: 3, initials: 'SN', name: 'Sana Naveed', id: 'WT-00695', score: 82, fit: 'Very Good' },
-  { rank: 4, initials: 'ZA', name: 'Zain Ali', id: 'WT-00712', score: 76, fit: 'Good' },
-  { rank: 5, initials: 'NM', name: 'Noor Malik', id: 'WT-00677', score: 72, fit: 'Good' },
-];
-
 export default function SeatRecoveryPage() {
-  const [recovery, setRecovery] = useState(initialRecovery);
+  const [candidates, setCandidates] = useState<any[]>([]);
+  const [waitlistMatches, setWaitlistMatches] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedCandidate, setSelectedCandidate] = useState<any>(null);
+  const [releasing, setReleasing] = useState(false);
+  const [offering, setOffering] = useState(false);
+  const [offeredWaitlistIds, setOfferedWaitlistIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
-  const [selected, setSelected] = useState(initialRecovery[0].name);
-  const [sentOffers, setSentOffers] = useState<string[]>([]);
   const [message, setMessage] = useState('');
-  const [autoMatch, setAutoMatch] = useState(false);
-  const [holdDate, setHoldDate] = useState('2026-09-03');
 
-  const visibleRecovery = useMemo(() => recovery.filter((item) => `${item.name} ${item.course} ${item.batch}`.toLowerCase().includes(search.toLowerCase())), [recovery, search]);
+  async function loadRecoveryData() {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/seats/recovery-candidates');
+      const data = (await res.json()) as any;
+      if (data.success) {
+        setCandidates(data.candidates);
+        if (data.candidates.length > 0) {
+          setSelectedCandidate(data.candidates[0]);
+        }
+      }
 
-  function release(name: string) {
-    setRecovery((current) => current.filter((item) => item.name !== name));
-    setSelected(recovery.find((item) => item.name !== name)?.name ?? '');
-    setMessage(`${name}’s seat was released in this demo.`);
+      const matchRes = await fetch('/api/waitlist/matches?offeringId=off-gul-wd');
+      const matchData = (await matchRes.json()) as any;
+      if (matchData.success) {
+        setWaitlistMatches(matchData.matches);
+      }
+    } catch {
+      toast.add({ title: 'Error', description: 'Failed to load recovery data', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
   }
 
-  function sendOffer(name: string) {
-    setSentOffers((current) => current.includes(name) ? current : [...current, name]);
-    setMessage(`Dummy offer sent to ${name}.`);
+  useEffect(() => {
+    loadRecoveryData();
+  }, []);
+
+  async function handleReleaseSeat(candidate: any) {
+    if (!candidate) return;
+    setReleasing(true);
+    try {
+      const res = await fetch(`/api/seats/${candidate.enrollmentId}/release`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Unreachable after repeated coordinator contact; complete no-show across first 6 weeks.' }),
+      });
+      const data = (await res.json()) as any;
+      if (data.success) {
+        toast.add({
+          title: 'Seat Released & Recovered',
+          description: `Dead seat in ${candidate.batchName} released. Matched ${data.matches.length} waitlist candidates.`,
+          type: 'success',
+        });
+        setCandidates((prev) => prev.filter((c) => c.enrollmentId !== candidate.enrollmentId));
+        setWaitlistMatches(data.matches);
+        if (candidates.length > 1) {
+          setSelectedCandidate(candidates.find((c) => c.enrollmentId !== candidate.enrollmentId));
+        }
+        setMessage(`Seat released for ${candidate.studentName}. Ready to offer to top waitlist applicant.`);
+      }
+    } catch {
+      toast.add({ title: 'Release failed', description: 'Could not release seat', type: 'error' });
+    } finally {
+      setReleasing(false);
+    }
   }
+
+  async function handleOfferWaitlist(match: any) {
+    if (!match) return;
+    setOffering(true);
+    try {
+      const res = await fetch(`/api/waitlist/${match.waitlistId}/offer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ batchId: selectedCandidate?.batchId || 'batch-wd-gul-m-a' }),
+      });
+      const data = (await res.json()) as any;
+      if (data.success) {
+        setOfferedWaitlistIds((prev) => [...prev, match.waitlistId]);
+        toast.add({
+          title: 'Seat Offered',
+          description: `Recovered seat in ${selectedCandidate?.batchName || 'WD-GUL-M-A'} offered to ${match.studentName}. 48h reservation hold placed.`,
+          type: 'success',
+        });
+      }
+    } catch {
+      toast.add({ title: 'Offer failed', description: 'Could not send offer', type: 'error' });
+    } finally {
+      setOffering(false);
+    }
+  }
+
+  const visibleCandidates = useMemo(
+    () =>
+      candidates.filter((item) =>
+        `${item.studentName} ${item.courseName} ${item.batchName}`.toLowerCase().includes(search.toLowerCase())
+      ),
+    [candidates, search]
+  );
 
   return (
     <AppShell>
-      <PageHeader title="Seat Recovery + Waitlist Matching" description="Recover abandoned seats and match with the best waitlisted candidates." />
-      {message && <div className="mb-4 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-700"><span className="flex items-center gap-2"><CheckCircle2 className="size-4" />{message}</span><button onClick={() => setMessage('')}>×</button></div>}
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Recovery Candidates" value={String(recovery.length + 13)} change="12.5%" icon={UsersRound} tone="green" />
-        <StatCard label="Seats Released" value={String(17 - recovery.length)} change="20%" icon={TicketCheck} tone="blue" />
-        <StatCard label="Waitlist Entries" value="126" change="8.3%" icon={UserRoundCheck} tone="amber" />
-        <StatCard label="Offers Sent" value={String(sentOffers.length + 9)} change="28.6%" icon={Send} tone="violet" />
+      <div className="mb-3 flex items-center gap-2 text-[10px] text-slate-400">
+        <span>Seat Operations</span>
+        <ArrowRight className="size-3" />
+        <span>Seat Recovery & Waitlist Matching (Hero 3)</span>
       </div>
 
-      <div className="mt-4 grid gap-4 2xl:grid-cols-2">
-        <Panel title="Recovery Candidates (Abandoned / At-Risk)">
-          <div className="flex flex-col gap-2 border-b border-slate-100 p-3 sm:flex-row"><FilterSelect options={['All Programs','Web Development','Graphic Design']} /><FilterSelect options={['All Batches','Morning','Evening']} /><FilterSelect options={['All Reasons','Low Attendance','Fee Not Paid']} /><div className="min-w-[190px] flex-[1.5]"><span className="mb-1 block text-[9px] font-semibold text-transparent">Search</span><PageSearch value={search} onChange={setSearch} placeholder="Search candidate" /></div></div>
-          <Table><TableHeader><TableRow><TableHead className="px-4 text-[9px]">Student</TableHead><TableHead className="text-[9px]">Course</TableHead><TableHead className="text-[9px]">Batch</TableHead><TableHead className="text-[9px]">Reason</TableHead><TableHead className="text-[9px]">Attendance Evidence</TableHead><TableHead className="text-[9px]">Action</TableHead></TableRow></TableHeader><TableBody>{visibleRecovery.map((item, index) => <TableRow key={item.name} onClick={() => setSelected(item.name)} className={cn('cursor-pointer', selected === item.name && 'bg-emerald-50/40')}><TableCell className="px-4 py-3"><div className="flex items-center gap-2"><span className={`grid size-8 place-items-center rounded-full text-[9px] ${['bg-emerald-50 text-emerald-700','bg-blue-50 text-blue-700','bg-amber-50 text-amber-700','bg-violet-50 text-violet-700','bg-cyan-50 text-cyan-700'][index % 5]}`}>{item.initials}</span><div><p className="text-[10px] font-semibold text-[#17345f]">{item.name}</p><p className="text-[8px] text-slate-400">{item.id}</p></div></div></TableCell><TableCell className="py-3 text-[9px] text-slate-600">{item.course}</TableCell><TableCell className="py-3 text-[9px] text-slate-600">{item.batch}</TableCell><TableCell className="py-3"><Badge className={item.reason === 'Fee Not Paid' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-700'}>{item.reason}</Badge></TableCell><TableCell className="py-3"><p className="text-[10px] font-semibold text-slate-600">{item.attendance}</p><p className="text-[8px] text-slate-400">Last: {item.last}</p></TableCell><TableCell className="py-3"><Button onClick={(event) => { event.stopPropagation(); release(item.name); }} size="sm" className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100">Release Seat</Button></TableCell></TableRow>)}</TableBody></Table>
-          <div className="flex items-center justify-between border-t border-slate-100 p-3 text-[9px] text-slate-400"><span>Showing {visibleRecovery.length} of 18 candidates</span><span>1 · 2 · 3 · 4 →</span></div>
-        </Panel>
+      <PageHeader
+        title="Seat Recovery & Waitlist Matching"
+        description="Detect enrolled students who never attended, confirm follow-up outcome, release wasted seats, and backfill qualified waitlisted applicants."
+        actions={
+          <Button variant="outline" className="bg-white" onClick={loadRecoveryData} disabled={loading}>
+            <RefreshCw className={loading ? 'animate-spin' : ''} />
+            Refresh Queue
+          </Button>
+        }
+      />
 
-        <Panel title="Waitlist Match – Select a Recovery Candidate" subtitle={`Best matches for ${selected || 'the selected candidate'}`}>
-          <div className="m-3 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[9px] text-blue-700">Matches are ranked by fit score based on course, campus, timing, gender and interview.</div>
-          <Table><TableHeader><TableRow><TableHead className="px-4 text-[9px]">Rank</TableHead><TableHead className="text-[9px]">Candidate</TableHead><TableHead className="text-[9px]">Fit Score</TableHead><TableHead className="text-[9px]">Compatibility</TableHead><TableHead className="text-[9px]">Action</TableHead></TableRow></TableHeader><TableBody>{initialWaitlist.map((item, index) => <TableRow key={item.name}><TableCell className="px-4 py-3"><span className={cn('grid size-6 place-items-center rounded-md text-[9px] font-bold', index === 0 ? 'bg-amber-400 text-white' : 'bg-slate-100 text-slate-500')}>{item.rank}</span></TableCell><TableCell className="py-3"><div className="flex items-center gap-2"><span className={`grid size-8 place-items-center rounded-full text-[9px] ${index % 2 ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700'}`}>{item.initials}</span><div><p className="text-[10px] font-semibold text-[#17345f]">{item.name}</p><p className="text-[8px] text-slate-400">{item.id}</p></div></div></TableCell><TableCell className="py-3"><p className="text-sm font-bold text-[#0a1e4b]">{item.score}%</p><p className="text-[8px] text-emerald-600">{item.fit}</p></TableCell><TableCell className="py-3"><div className="flex max-w-[190px] flex-wrap gap-1">{['Course','Campus','Timing','Gender','Interview'].map((tag, tagIndex) => <Badge key={tag} className={tagIndex < 3 ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}>{tag}</Badge>)}</div></TableCell><TableCell className="py-3"><Button size="sm" onClick={() => sendOffer(item.name)} className={sentOffers.includes(item.name) ? 'bg-slate-100 text-slate-500' : 'bg-emerald-600 text-white hover:bg-emerald-700'}>{sentOffers.includes(item.name) ? 'Sent' : 'Offer'}</Button></TableCell></TableRow>)}</TableBody></Table>
-          <div className="border-t border-slate-100 p-3 text-center"><button className="text-[10px] font-medium text-blue-600">View full waitlist →</button></div>
-        </Panel>
+      {message && (
+        <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-800">
+          {message}
+        </div>
+      )}
+
+      <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Dead Seats Detected" value={String(candidates.length)} change="15 in Gulshan" icon={ShieldAlert} tone="amber" />
+        <StatCard label="Potential Impact" value={`+${candidates.length} Youth`} change="Zero extra funding" icon={Sparkles} tone="green" />
+        <StatCard label="Waitlist Backlog" value="120" change="Interview passed" icon={UsersRound} tone="blue" />
+        <StatCard label="Reservation Hold" value="48 Hours" change="Auto-return if unclaimed" icon={Clock3} tone="violet" />
       </div>
 
-      <section className="mt-4 grid overflow-hidden rounded-xl border border-blue-200 bg-white lg:grid-cols-[170px_1fr_1.1fr_1.1fr]">
-        <div className="flex items-center gap-3 bg-blue-50/70 p-4"><CalendarDays className="size-6 text-blue-600" /><div><p className="text-[11px] font-bold text-[#17345f]">Seat Release</p><p className="text-[10px] text-[#17345f]">& Hold Options</p></div></div>
-        <div className="border-t border-slate-100 p-4 lg:border-l lg:border-t-0"><p className="text-[10px] font-bold text-[#17345f]">Release Seat Now</p><p className="mt-1 text-[9px] text-slate-400">Seat will be available immediately for matching.</p><Button onClick={() => selected && release(selected)} size="sm" className="mt-3 bg-emerald-600 text-white"><TicketCheck />Release Seat</Button></div>
-        <div className="border-t border-slate-100 p-4 lg:border-l lg:border-t-0"><p className="text-[10px] font-bold text-[#17345f]">Hold Until</p><p className="mt-1 text-[9px] text-slate-400">Temporarily hold the seat before offering.</p><div className="mt-3 flex gap-2"><Input type="date" value={holdDate} onChange={(event) => setHoldDate(event.target.value)} className="h-9 text-xs" /><Button onClick={() => setMessage(`Seat held until ${holdDate}.`)} size="sm" className="bg-blue-600 text-white"><LockKeyhole />Hold Seat</Button></div></div>
-        <div className="border-t border-slate-100 p-4 lg:border-l lg:border-t-0"><p className="text-[10px] font-bold text-[#17345f]">Auto Match & Offer</p><p className="mt-1 text-[9px] text-slate-400">Automatically match and send offers to top candidates.</p><Button onClick={() => { setAutoMatch((value) => !value); setMessage(autoMatch ? 'Auto match disabled.' : 'Auto match enabled for this demo.'); }} size="sm" variant={autoMatch ? 'default' : 'outline'} className={cn('mt-3', autoMatch && 'bg-gradient-to-r from-[#08af8b] to-[#07558a] text-white')}><Sparkles />{autoMatch ? 'Auto Match On' : 'Enable Auto Match'}</Button></div>
-      </section>
-      <div className="mt-4 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-[9px] text-emerald-700"><span className="flex items-center gap-2"><CheckCircle2 className="size-4" />All seat recovery actions are logged in this demo.</span><button className="font-semibold">View Activity Log <ArrowRight className="inline size-3" /></button></div>
+      <div className="grid gap-4 2xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+        {/* Left: Dead Seats Candidates */}
+        <div className="space-y-4">
+          <Panel
+            title="Dead Seat Recovery Candidates"
+            subtitle="Students with 0% attendance across first 6 weeks and unreachable follow-up attempts"
+            action={<PageSearch value={search} onChange={setSearch} placeholder="Search candidate..." />}
+          >
+            <div className="p-4">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50">
+                    <TableHead className="px-4 text-[9px]">Student</TableHead>
+                    <TableHead className="text-[9px]">Course / Batch</TableHead>
+                    <TableHead className="text-[9px]">Attendance Proof</TableHead>
+                    <TableHead className="text-[9px]">Follow-up Status</TableHead>
+                    <TableHead className="text-[9px]">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visibleCandidates.slice(0, 8).map((c: any) => (
+                    <TableRow
+                      key={c.enrollmentId}
+                      className={cn(
+                        'cursor-pointer transition',
+                        selectedCandidate?.enrollmentId === c.enrollmentId ? 'bg-blue-50/60 font-semibold' : ''
+                      )}
+                      onClick={() => setSelectedCandidate(c)}
+                    >
+                      <TableCell className="px-4 py-2 font-medium text-[10px] text-[#17345f]">
+                        {c.studentName}
+                      </TableCell>
+                      <TableCell className="py-2 text-[10px] text-slate-600">
+                        {c.courseName} · <span className="font-mono text-blue-700">{c.batchName}</span>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <Badge className="bg-red-50 text-red-700 font-mono text-[9px]">
+                          0/18 Classes (0%)
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <Badge className="bg-amber-50 text-amber-700 text-[9px]">{c.followUpStatus}</Badge>
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={releasing}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReleaseSeat(c);
+                          }}
+                          className="h-7 border-red-200 bg-red-50/50 text-[10px] text-red-700 hover:bg-red-100"
+                        >
+                          Release Seat
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {visibleCandidates.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-8 text-center text-xs text-slate-400">
+                        All dead seats successfully released and backfilled from waitlist!
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </Panel>
+        </div>
+
+        {/* Right: Waitlist Matching & Immediate Backfill */}
+        <aside className="space-y-4">
+          <Panel
+            title="Instant Waitlist Backfill"
+            subtitle={selectedCandidate ? `Matching for freed seat in ${selectedCandidate.batchName}` : 'Select a candidate'}
+            action={<Sparkles className="size-4 text-emerald-600" />}
+          >
+            <div className="space-y-3 p-4">
+              {waitlistMatches.slice(0, 4).map((w: any) => {
+                const isOffered = offeredWaitlistIds.includes(w.waitlistId);
+                return (
+                  <div
+                    key={w.waitlistId}
+                    className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-emerald-300"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-bold text-xs text-[#0a1e4b]">{w.studentName}</p>
+                        <p className="text-[10px] text-slate-500">
+                          Aptitude: {w.score}% · Interview: <span className="text-emerald-600 font-semibold">Passed</span>
+                        </p>
+                      </div>
+                      <Badge className="bg-emerald-50 font-bold text-emerald-700 text-[10px]">
+                        {w.matchScore}% Match
+                      </Badge>
+                    </div>
+                    <p className="mt-2 text-[9px] text-slate-500 leading-relaxed">{w.matchReason}</p>
+                    <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2">
+                      <span className="flex items-center gap-1 text-[9px] text-slate-400">
+                        <Clock3 className="size-3" /> 48h hold
+                      </span>
+                      <Button
+                        size="sm"
+                        disabled={offering || isOffered}
+                        onClick={() => handleOfferWaitlist(w)}
+                        className={cn(
+                          'h-7 text-[10px]',
+                          isOffered
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-gradient-to-r from-[#07ae89] to-[#07558a] text-white'
+                        )}
+                      >
+                        {isOffered ? <CheckCircle2 className="size-3" /> : <Send className="size-3" />}
+                        {isOffered ? 'Offer Sent & Seat Held' : 'Offer Seat'}
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Panel>
+
+          <Panel title="Hero 3 Impact Pitch Statement">
+            <div className="rounded-xl bg-gradient-to-br from-[#07475b] to-[#032976] p-4 text-white">
+              <p className="text-xs font-bold text-[#c6ef33]">🎯 High-Leverage Impact</p>
+              <p className="mt-2 text-[11px] leading-relaxed text-blue-100/90">
+                “This session, BanoQabil One recovered <strong>15 dead seats</strong> in one campus alone. Across 220 campuses, that represents <strong>thousands of additional Pakistani youth trained</strong> at zero additional classroom or trainer cost.”
+              </p>
+            </div>
+          </Panel>
+        </aside>
+      </div>
     </AppShell>
   );
 }

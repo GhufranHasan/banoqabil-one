@@ -18,12 +18,30 @@ export function ErrorHandlingProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     const show = (value: SystemError) => setError({ ...value, reference: value.reference ?? `BQ-${Date.now().toString(36).toUpperCase()}` });
     const handleError = (event: ErrorEvent) => {
+      const msg = event.error instanceof Error ? event.error.message : event.message;
+      if (
+        msg?.includes('ResizeObserver') ||
+        msg?.includes('ResizeObserver loop completed with undelivered notifications') ||
+        msg?.includes('ResizeObserver loop limit exceeded')
+      ) {
+        event.stopImmediatePropagation();
+        return;
+      }
       event.preventDefault();
-      show({ title: 'Unexpected application error', message: event.error instanceof Error ? event.error.message : event.message });
+      show({ title: 'Unexpected application error', message: msg || 'An unexpected error occurred' });
     };
     const handleRejection = (event: PromiseRejectionEvent) => {
+      const msg = event.reason instanceof Error ? event.reason.message : String(event.reason ?? '');
+      if (
+        msg?.includes('ResizeObserver') ||
+        msg?.includes('ResizeObserver loop completed with undelivered notifications') ||
+        msg?.includes('ResizeObserver loop limit exceeded')
+      ) {
+        event.stopImmediatePropagation();
+        return;
+      }
       event.preventDefault();
-      show({ title: 'Request failed', message: event.reason instanceof Error ? event.reason.message : String(event.reason ?? 'The request could not be completed.') });
+      show({ title: 'Request failed', message: msg || 'The request could not be completed.' });
     };
     const handleReportedError = (event: Event) => show((event as CustomEvent<SystemError>).detail);
     window.addEventListener('error', handleError);
