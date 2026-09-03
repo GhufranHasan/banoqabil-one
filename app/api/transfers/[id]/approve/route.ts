@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { resolveScopeContext } from '@/lib/auth-scope';
 import { dbStore } from '@/lib/demo-data';
+import { DbAdapter } from '@/lib/db-adapter';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const scope = resolveScopeContext(req);
@@ -62,7 +63,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       transfer.rejectionReason = rejectionReason;
       transfer.updatedAt = new Date().toISOString();
 
-      dbStore.addAuditLog({
+      // Persist rejection to Supabase
+      await DbAdapter.persistTransfer(id, 'REJECT', scope.userId);
+
+      await DbAdapter.logAudit({
         actorId: scope.userId,
         actorRole: scope.role,
         actorName: scope.userName || 'User',
@@ -91,7 +95,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       transfer.approvedById = scope.userId;
       transfer.updatedAt = new Date().toISOString();
 
-      dbStore.addAuditLog({
+      // Persist approval to Supabase
+      await DbAdapter.persistTransfer(id, 'APPROVED', scope.userId, transfer.targetBatchId, transfer.enrollmentId);
+
+      await DbAdapter.logAudit({
         actorId: scope.userId,
         actorRole: scope.role,
         actorName: scope.userName || 'User',
@@ -101,6 +108,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         details: `Approved transfer for ${transfer.studentName} from ${oldBatchId} to ${transfer.targetBatchId}. Attendance history preserved.`,
         scopeJson: { campusIds: scope.campusIds, role: scope.role },
       });
+
 
       return NextResponse.json({
         success: true,

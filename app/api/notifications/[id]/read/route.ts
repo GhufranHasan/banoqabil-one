@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { dbStore } from '@/lib/demo-data';
+import { DbAdapter } from '@/lib/db-adapter';
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -11,6 +12,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   notif.read = true;
+  await DbAdapter.persistNotificationRead(id);
+
 
   return NextResponse.json({
     success: true,

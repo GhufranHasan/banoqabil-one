@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { resolveScopeContext } from '@/lib/auth-scope';
 import { dbStore } from '@/lib/demo-data';
+import { DbAdapter } from '@/lib/db-adapter';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const scope = resolveScopeContext(req);
@@ -31,16 +32,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     run.status = 'APPROVED';
     run.approvedById = scope.userId;
 
-    dbStore.addAuditLog({
-      actorId: scope.userId,
-      actorRole: scope.role,
-      actorName: scope.userName || 'Coordinator',
-      action: 'APPROVE_ALLOCATION',
-      entityType: 'AllocationRun',
-      entityId: run.id,
-      details: `Approved allocation run ${run.id} with stateHash ${run.stateHash}. Committed ${run.stats.allocatedCount} enrollments to database.`,
-      scopeJson: { campusIds: [run.campusId] },
-    });
+    const relevantProposals = state.allocationProposals
+      .filter((p) => p.runId === run.id && p.batchId)
+      .map((p) => ({ studentId: p.studentId, batchId: p.batchId! }));
+
+    // Persist to Supabase
+    await DbAdapter.persistApproveAllocation(
+      run.id,
+      scope.userId,
+      scope.userName || 'Coordinator',
+      scope.role,
+      relevantProposals
+    );
+
 
     return NextResponse.json({
       success: true,

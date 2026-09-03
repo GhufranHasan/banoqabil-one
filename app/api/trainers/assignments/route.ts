@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { resolveScopeContext } from '@/lib/auth-scope';
 import { dbStore } from '@/lib/demo-data';
+import { DbAdapter } from '@/lib/db-adapter';
+import { prisma } from '@/lib/db';
 
 export async function POST(req: Request) {
   const scope = resolveScopeContext(req);
@@ -25,7 +27,27 @@ export async function POST(req: Request) {
     const previousTrainerId = batch.trainerId;
     batch.trainerId = trainerId;
 
-    dbStore.addAuditLog({
+    // Persist to Supabase
+    try {
+      await prisma.teacherAssignment.upsert({
+        where: {
+          teacherId_batchId: {
+            teacherId,
+            batchId,
+          },
+        },
+        update: {},
+        create: {
+          id: `asgn-${batchId}-${trainerId}`,
+          teacherId,
+          batchId,
+        },
+      });
+    } catch (e: any) {
+      console.warn('Supabase teacher assignment error:', e.message);
+    }
+
+    await DbAdapter.logAudit({
       actorId: scope.userId,
       actorRole: scope.role,
       actorName: scope.userName || 'User',
@@ -35,6 +57,7 @@ export async function POST(req: Request) {
       details: `Assigned trainer ${teacher.fullName} to batch ${batch.name} (replaced ${previousTrainerId || 'None'}).`,
       scopeJson: { campusIds: scope.campusIds, role: scope.role },
     });
+
 
     return NextResponse.json({
       success: true,

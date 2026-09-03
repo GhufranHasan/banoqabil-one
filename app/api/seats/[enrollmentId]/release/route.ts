@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { resolveScopeContext } from '@/lib/auth-scope';
+import { DbAdapter } from '@/lib/db-adapter';
 import { SeatRecoveryEngine } from '@/lib/recovery-waitlist-engine';
 
 export async function POST(req: Request, { params }: { params: Promise<{ enrollmentId: string }> }) {
@@ -23,6 +24,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ enrollm
       scope.role,
       reason
     );
+
+    // Persist to real Supabase PostgreSQL
+    await DbAdapter.persistReleaseSeat(
+      enrollmentId,
+      scope.userId,
+      scope.userName || 'Coordinator',
+      scope.role,
+      reason
+    );
+
 
     // Automatically match waitlist candidates for this freed slot
     const matches = SeatRecoveryEngine.matchWaitlistCandidates(result.offeringId);

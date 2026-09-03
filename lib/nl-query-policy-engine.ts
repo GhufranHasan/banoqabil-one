@@ -29,9 +29,13 @@ export class NLQueryPolicyEngine {
     // 1. Check for prompt injection / jailbreak attempts in the question
     const isInjectionAttempt =
       /ignore (all |previous )?instructions/i.test(question) ||
-      /you are (now )?(an )?admin/i.test(question) ||
+      /you are (now )?(an )?(super )?admin/i.test(question) ||
       /bypass (permissions|security)/i.test(question) ||
-      /show (all |every )campuses/i.test(question);
+      /(all|every|other|cross)\s+campus(es)?/i.test(question) ||
+      /delete|drop table|truncate/i.test(question);
+
+
+
 
     // 2. Intent classifier & QuerySpec translation (Model NEVER sees user scope or database credentials)
     const spec = await AIGateway.translateNLToQuerySpec(question);
@@ -159,7 +163,7 @@ export class NLQueryPolicyEngine {
       : undefined;
 
     // 5. Grounded narration
-    const narration = AIGateway.narrateQueryResults(
+    const narration = await AIGateway.narrateQueryResultsAsync(
       question,
       spec,
       rows,
@@ -181,7 +185,8 @@ export class NLQueryPolicyEngine {
     });
 
     if (isInjectionAttempt) {
-      dbStore.addAuditLog({
+      const { DbAdapter } = await import('./db-adapter');
+      await DbAdapter.logAudit({
         actorId: scope.userId,
         actorRole: scope.role,
         actorName: scope.userName || 'Demo User',
@@ -206,7 +211,11 @@ export class NLQueryPolicyEngine {
         isGlobal: scope.isGlobal,
       },
       securityAlert: isInjectionAttempt,
+      aiProvider: 'Alibaba Cloud Model Studio (Qwen)',
+      model: narration.model,
+      aiSource: narration.aiSource,
       data: rows,
     };
+
   }
 }

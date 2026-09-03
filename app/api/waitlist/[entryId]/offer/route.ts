@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { resolveScopeContext } from '@/lib/auth-scope';
+import { DbAdapter } from '@/lib/db-adapter';
 import { SeatRecoveryEngine } from '@/lib/recovery-waitlist-engine';
 
 export async function POST(req: Request, { params }: { params: Promise<{ entryId: string }> }) {
@@ -22,6 +23,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ entryId
       scope.userId,
       scope.userName || 'Coordinator'
     );
+
+    // Persist to Supabase
+    await DbAdapter.persistOfferSeat(
+      entryId,
+      result.newEnrollment.batchId,
+      batchId,
+      scope.userId,
+      scope.userName || 'Coordinator',
+      scope.role
+    );
+
 
     return NextResponse.json({
       success: true,

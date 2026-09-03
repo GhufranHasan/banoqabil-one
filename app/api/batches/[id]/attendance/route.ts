@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { resolveScopeContext } from '@/lib/auth-scope';
 import { dbStore } from '@/lib/demo-data';
+import { DbAdapter } from '@/lib/db-adapter';
 import { AttendanceRiskEngine } from '@/lib/risk-engine';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -70,16 +71,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
     });
 
-    dbStore.addAuditLog({
-      actorId: scope.userId,
-      actorRole: scope.role,
-      actorName: scope.userName || 'Teacher',
-      action: 'MARK_ATTENDANCE',
-      entityType: 'Batch',
-      entityId: batchId,
-      details: `Submitted attendance for ${records.length} students in batch ${batchId} (Session ${classSessionId}).`,
-      scopeJson: { batchIds: [batchId] },
-    });
+    // Persist to Supabase
+    await DbAdapter.persistAttendance(
+      batchId,
+      classSessionId,
+      new Date(),
+      records,
+      scope.userId,
+      scope.role
+    );
+
 
     return NextResponse.json({
       success: true,

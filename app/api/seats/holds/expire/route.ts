@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { resolveScopeContext } from '@/lib/auth-scope';
 import { dbStore } from '@/lib/demo-data';
+import { DbAdapter } from '@/lib/db-adapter';
 
 export async function POST(req: Request) {
   const scope = resolveScopeContext(req);
@@ -25,8 +26,11 @@ export async function POST(req: Request) {
       }
     });
 
+    // Also persist expired holds in Supabase
+    await DbAdapter.persistExpireHolds();
+
     if (expiredCount > 0) {
-      dbStore.addAuditLog({
+      await DbAdapter.logAudit({
         actorId: scope.userId,
         actorRole: scope.role,
         actorName: scope.userName || 'System Cron',
@@ -36,6 +40,7 @@ export async function POST(req: Request) {
         scopeJson: { isGlobal: true },
       });
     }
+
 
     return NextResponse.json({
       success: true,

@@ -24,6 +24,68 @@ export interface ValueCanonicalizationResult {
 export class AIGateway {
   private static apiKey = process.env.DASHSCOPE_API_KEY || process.env.ALIBABA_CLOUD_API_KEY || '';
   private static baseUrl = process.env.DASHSCOPE_BASE_URL || 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1';
+  private static workspaceId = process.env.DASHSCOPE_WORKSPACE_ID || '';
+  public static readonly MODEL_NAME = 'qwen-plus';
+
+  /**
+   * Performs an authenticated model request to Alibaba Cloud Model Studio (Qwen)
+   * with 8-second timeout, PII protection, and safe fallback.
+   */
+  public static async callQwenModel(prompt: string, systemPrompt?: string): Promise<{ text: string; live: boolean; error?: string }> {
+    if (!this.apiKey) {
+      return { text: '', live: false, error: 'DASHSCOPE_API_KEY is not configured' };
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${this.apiKey}`,
+    };
+    if (this.workspaceId) {
+      headers['X-DashScope-WorkSpace'] = this.workspaceId;
+    }
+
+    try {
+      const res = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model: this.MODEL_NAME,
+          messages: [
+            {
+              role: 'system',
+              content: systemPrompt || 'You are an AI assistant for Bano Qabil One education network. Provide factual, concise operational responses in English and Roman Urdu.',
+            },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.2,
+          max_tokens: 300,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        const errCode = (errJson as any)?.error?.code || `HTTP_${res.status}`;
+        console.warn(`[AIGateway] Alibaba Qwen API response ${res.status} (${errCode}). Falling back to deterministic engine.`);
+        return { text: '', live: false, error: `Alibaba API ${res.status}: ${errCode}` };
+      }
+
+      const data = (await res.json()) as any;
+      const content = data?.choices?.[0]?.message?.content || '';
+      return { text: content, live: true };
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      const isTimeout = err.name === 'AbortError';
+      const msg = isTimeout ? 'Request timed out after 8s' : err.message;
+      console.warn(`[AIGateway] Alibaba DashScope connection failed: ${msg}. Falling back to deterministic engine.`);
+      return { text: '', live: false, error: msg };
+    }
+  }
 
   /**
    * Hero 1: AI Schema Mapping & Normalization
@@ -256,4 +318,66 @@ export class AIGateway {
       romanUrdu: `Aap ke ikhtiyarat (${scopeRole}) ke mutabiq ${rows.length} records daryaft huay hain.`,
     };
   }
+
+  /**
+   * Hero 2: Grounded narration using live Qwen model with robust fallback
+   */
+  public static async narrateQueryResultsAsync(
+    question: string,
+    spec: QuerySpec,
+    rows: Record<string, unknown>[],
+    scopeRole: string,
+    campusName?: string
+  ): Promise<{ english: string; romanUrdu: string; aiSource: 'LIVE_QWEN' | 'FALLBACK'; model: string }> {
+    // Prepare sanitized facts summary without PII (strictly no CNIC or phone numbers)
+    const sanitizedRows = rows.slice(0, 10).map((r) => {
+      const copy = { ...r };
+      delete copy.cnic;
+      delete copy.cnicMasked;
+      delete copy.cnicHash;
+      delete copy.phone;
+      delete copy.phoneNormalized;
+      return copy;
+    });
+
+    const prompt = `User question: "${question}"
+Role: ${scopeRole} ${campusName ? `(Campus: ${campusName})` : ''}
+Intent: ${spec.intent}
+Data retrieved (${rows.length} rows):
+${JSON.stringify(sanitizedRows, null, 2)}
+
+Provide a concise factual executive summary in this JSON format:
+{
+  "english": "Concise summary in English",
+  "romanUrdu": "Concise summary in Roman Urdu"
+}`;
+
+    const qwenResp = await this.callQwenModel(prompt);
+    if (qwenResp.live && qwenResp.text) {
+      try {
+        const jsonMatch = qwenResp.text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed.english && parsed.romanUrdu) {
+            return {
+              english: parsed.english,
+              romanUrdu: parsed.romanUrdu,
+              aiSource: 'LIVE_QWEN',
+              model: this.MODEL_NAME,
+            };
+          }
+        }
+      } catch {
+        // Format parse error, proceed to deterministic fallback
+      }
+    }
+
+    const fallback = this.narrateQueryResults(question, spec, rows, scopeRole, campusName);
+    return {
+      ...fallback,
+      aiSource: 'FALLBACK',
+      model: this.MODEL_NAME,
+    };
+  }
 }
+

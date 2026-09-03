@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { resolveScopeContext } from '@/lib/auth-scope';
 import { dbStore } from '@/lib/demo-data';
+import { DbAdapter } from '@/lib/db-adapter';
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const scope = resolveScopeContext(req);
@@ -30,7 +31,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       dup.status = 'PENDING';
     }
 
-    dbStore.addAuditLog({
+    // Persist to Supabase
+    await DbAdapter.persistDuplicateResolution(id, dup.status as any, scope.userId);
+
+    await DbAdapter.logAudit({
       actorId: scope.userId,
       actorRole: scope.role,
       actorName: scope.userName || 'Coordinator',
@@ -40,6 +44,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       details: `Resolved duplicate pair (${dup.studentAName} & ${dup.studentBName}) with action: ${action}. Zero data deleted.`,
       scopeJson: { campusIds: [dup.campusId] },
     });
+
 
     return NextResponse.json({
       success: true,

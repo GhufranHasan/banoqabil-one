@@ -51,7 +51,8 @@ export interface DatabaseState {
   notifications: Notification[];
 }
 
-function createInitialDatabaseState(): DatabaseState {
+export function createInitialDatabaseState(): DatabaseState {
+
   const sessions: Session[] = [
     {
       id: 'bq-5.0',
@@ -943,18 +944,167 @@ class MemoryDataStore {
   public static getInstance(): MemoryDataStore {
     if (!MemoryDataStore.instance) {
       MemoryDataStore.instance = new MemoryDataStore();
+      MemoryDataStore.instance.hydrateFromSupabase().catch(() => {});
     }
     return MemoryDataStore.instance;
   }
 
+
   public getState(): DatabaseState {
     return this.state;
+  }
+
+  public async hydrateFromSupabase(): Promise<boolean> {
+    try {
+      const { prisma } = await import('./db');
+      const [enrollments, waitlist, followUps, duplicates, transfers, notifications, auditLogs] = await Promise.all([
+        prisma.enrollment.findMany(),
+        prisma.waitlistEntry.findMany(),
+        prisma.followUp.findMany(),
+        prisma.duplicateCandidate.findMany(),
+        prisma.transferRequest.findMany(),
+        prisma.notification.findMany({ orderBy: { createdAt: 'desc' } }),
+        prisma.auditLog.findMany({ orderBy: { createdAt: 'desc' }, take: 100 }),
+      ]);
+
+      if (enrollments.length > 0) {
+        this.state.enrollments = enrollments.map((e) => ({
+          id: e.id,
+          studentId: e.studentId,
+          batchId: e.batchId,
+          sessionId: e.sessionId,
+          status: e.status as any,
+          allocatedAt: e.allocatedAt?.toISOString() || new Date().toISOString(),
+          seatHeldUntil: e.seatHeldUntil?.toISOString(),
+          releasedAt: e.releasedAt?.toISOString(),
+          releaseReason: e.releaseReason || undefined,
+        }));
+      }
+
+      if (waitlist.length > 0) {
+        this.state.waitlist = waitlist.map((w) => ({
+          id: w.id,
+          studentId: w.studentId,
+          offeringId: w.offeringId,
+          timeSlotIds: w.timeSlotIds,
+          appliedAt: w.appliedAt.toISOString(),
+          interviewPassed: w.interviewPassed,
+          score: w.score,
+          status: w.status as any,
+        }));
+      }
+
+      if (followUps.length > 0) {
+        this.state.followUps = followUps.map((f) => {
+          const student = this.state.students.find((s) => s.id === f.studentId);
+          const batch = this.state.batches.find((b) => b.id === (f as any).batchId);
+          return {
+            id: f.id,
+            studentId: f.studentId,
+            studentName: student?.fullName || 'Student',
+            enrollmentId: f.enrollmentId,
+            batchId: batch?.id || 'batch-wd-gul-m-a',
+            batchName: batch?.name || 'WD-GUL-M-A',
+            campusId: batch?.campusId || 'campus-gulshan',
+            campusName: 'Gulshan Campus, Karachi',
+            courseName: 'Web Development',
+            reasonCode: f.reasonCode,
+            priority: f.priority as any,
+            score: f.score,
+            explanation: f.explanation,
+            status: f.status as any,
+            notes: (f.notes as any) || [],
+            createdAt: f.createdAt.toISOString(),
+          };
+        });
+      }
+
+      if (duplicates.length > 0) {
+        this.state.duplicates = duplicates.map((d) => {
+          const sA = this.state.students.find((s) => s.id === d.studentAId);
+          const sB = this.state.students.find((s) => s.id === d.studentBId);
+          return {
+            id: d.id,
+            studentAId: d.studentAId,
+            studentAName: sA?.fullName || 'Student A',
+            studentBId: d.studentBId,
+            studentBName: sB?.fullName || 'Student B',
+            confidence: d.confidence as any,
+            matchReason: d.matchReason,
+            status: d.status as any,
+            campusId: d.campusId,
+            campusName: 'Gulshan Campus, Karachi',
+            detectedAt: d.detectedAt.toISOString(),
+          };
+        });
+      }
+
+      if (transfers.length > 0) {
+        this.state.transferRequests = transfers.map((t) => {
+          const student = this.state.students.find((s) => s.id === t.studentId);
+          const curBatch = this.state.batches.find((b) => b.id === t.currentBatchId);
+          const tgtBatch = this.state.batches.find((b) => b.id === t.targetBatchId);
+          return {
+            id: t.id,
+            enrollmentId: t.enrollmentId,
+            studentId: t.studentId,
+            studentName: student?.fullName || 'Student',
+            currentBatchId: t.currentBatchId,
+            currentBatchName: curBatch?.name || t.currentBatchId,
+            targetBatchId: t.targetBatchId,
+            targetBatchName: tgtBatch?.name || t.targetBatchId,
+            currentCampusId: t.currentCampusId,
+            targetCampusId: t.targetCampusId,
+            isCrossCampus: t.isCrossCampus,
+            reason: t.reason,
+            status: t.status as any,
+            requestedById: t.requestedById,
+            approvedById: t.approvedById || undefined,
+            createdAt: t.createdAt.toISOString(),
+            updatedAt: t.updatedAt.toISOString(),
+          };
+        });
+      }
+
+      if (notifications.length > 0) {
+        this.state.notifications = notifications.map((n) => ({
+          id: n.id,
+          role: n.role as any,
+          title: n.title,
+          message: n.message,
+          link: n.link || undefined,
+          priority: n.priority as any,
+          read: n.read,
+          createdAt: n.createdAt.toISOString(),
+        }));
+      }
+
+      if (auditLogs.length > 0) {
+        this.state.auditLogs = auditLogs.map((a) => ({
+          id: a.id,
+          actorId: a.actorId,
+          actorRole: a.actorRole as any,
+          action: a.action,
+          entityType: a.entityType,
+          entityId: a.entityId || undefined,
+          details: a.details,
+          scopeJson: (a.scopeJson as any) || {},
+          createdAt: a.createdAt.toISOString(),
+        }));
+      }
+
+      return true;
+    } catch (e: any) {
+      console.warn('Could not hydrate from Supabase (offline/demo mode active):', e.message);
+      return false;
+    }
   }
 
   public reset(): DatabaseState {
     this.state = createInitialDatabaseState();
     return this.state;
   }
+
 
   public addAuditLog(log: Omit<AuditLog, 'id' | 'createdAt'>): AuditLog {
     const fullLog: AuditLog = {
