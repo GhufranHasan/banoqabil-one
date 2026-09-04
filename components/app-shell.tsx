@@ -358,10 +358,18 @@ export function AppShell({ children, role, userName }: { children: React.ReactNo
   const [avatarVariant, setAvatarVariant] = useState<AvatarVariant>(() => inferredAvatar(userName ?? roleUserName(role ?? 'Coordinator')));
   const [profilePhoto, setProfilePhoto] = useState('');
   const [roleReady, setRoleReady] = useState(false);
+  const [activeCampus, setActiveCampus] = useState<string>('campus-gulshan');
   useEffect(() => {
     const stored = sessionStorage.getItem('bqone-demo-role') as AppRole | null;
-    setEffectiveRole(stored && ['Student', 'Teacher', 'Coordinator', 'Super Admin', 'Regional Manager'].includes(stored) ? stored : (role ?? 'Coordinator'));
+    const effRole = stored && ['Student', 'Teacher', 'Coordinator', 'Super Admin', 'Regional Manager'].includes(stored) ? stored : (role ?? 'Coordinator');
+    setEffectiveRole(effRole);
     setRoleReady(true);
+    const storedCampus = sessionStorage.getItem('bqone-demo-campus');
+    if (storedCampus) {
+      setActiveCampus(storedCampus);
+    } else {
+      setActiveCampus(effRole === 'Coordinator' || effRole === 'Teacher' ? 'campus-gulshan' : 'all');
+    }
   }, [role]);
   useEffect(() => {
     if (!roleReady || canAccess(effectiveRole, pathname)) return;
@@ -405,7 +413,16 @@ export function AppShell({ children, role, userName }: { children: React.ReactNo
           {globalSearch && <div className="absolute top-12 z-50 w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600 shadow-2xl"><p className="font-semibold text-[#0b1f4d]">Demo search results</p><p className="mt-1">3 students, 2 batches and 1 campus match “{globalSearch}”.</p></div>}
         </div>
         <div className="ml-auto hidden items-center gap-3 md:flex">
-          <NativeSelect className="w-[260px] border-white/10 text-white [&_select]:h-11 [&_select]:border-white/10 [&_select]:bg-white/[.08] [&_select]:text-white [&_select_option]:text-slate-900 [&_select_optgroup]:text-slate-500 [&_select_optgroup]:font-bold [&_select_optgroup]:bg-slate-100">
+          <NativeSelect
+            value={activeCampus}
+            onChange={(e) => {
+              const val = e.target.value;
+              setActiveCampus(val);
+              sessionStorage.setItem('bqone-demo-campus', val);
+              window.dispatchEvent(new CustomEvent('bqone-campus-change', { detail: val }));
+            }}
+            className="w-[260px] border-white/10 text-white [&_select]:h-11 [&_select]:border-white/10 [&_select]:bg-white/[.08] [&_select]:text-white [&_select_option]:text-slate-900 [&_select_optgroup]:text-slate-500 [&_select_optgroup]:font-bold [&_select_optgroup]:bg-slate-100"
+          >
             <optgroup label="Islamabad Campuses">
               <NativeSelectOption value="campus-isb-i8">I-8 Campus (Jamia Masjid Al Furqan)</NativeSelectOption>
               <NativeSelectOption value="campus-isb-h8">H-8 Campus (Jamia Tafheem-ul-Quran)</NativeSelectOption>
