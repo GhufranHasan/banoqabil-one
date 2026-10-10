@@ -27,7 +27,7 @@ const roles = [
   { label: 'Student', description: 'Access courses and learning materials', icon: UserRound, tone: 'emerald' },
   { label: 'Teacher', description: 'Manage classes and support learners', icon: GraduationCap, tone: 'blue' },
   { label: 'Coordinator', description: 'Oversee campus operations and performance', icon: Building2, tone: 'amber' },
-  { label: 'Super Admin', description: 'Manage platform, users and settings', icon: ShieldCheck, tone: 'violet' },
+  { label: 'Admin', description: 'Manage platform, users and settings', icon: ShieldCheck, tone: 'violet' },
 ] as const;
 
 export default function LoginPage() {
@@ -50,6 +50,7 @@ export default function LoginPage() {
       Student: '/dashboard/student',
       Teacher: '/dashboard/teacher',
       Coordinator: '/dashboard/coordinator',
+      Admin: '/dashboard/admin',
       'Super Admin': '/dashboard/admin',
     };
     router.push(roleRoutes[selectedRole] ?? '/dashboard/coordinator');
@@ -106,9 +107,6 @@ export default function LoginPage() {
               <Button type="submit" className="h-12 w-full rounded-lg bg-gradient-to-r from-[#08af8b] via-[#08777c] to-[#073281] text-sm font-semibold text-white shadow-lg hover:opacity-95">Sign In <ArrowRight /></Button>
             </div>
 
-            <div className="my-6 flex items-center gap-3 text-[11px] text-slate-400"><span className="h-px flex-1 bg-slate-200" />or continue with<span className="h-px flex-1 bg-slate-200" /></div>
-            <div className="grid gap-3 sm:grid-cols-2"><Button type="button" variant="outline" className="h-11" onClick={() => setMessage('Google sign-in is simulated in this demo.')}><span className="font-bold text-blue-600">G</span>Sign in with Google</Button><Button type="button" variant="outline" className="h-11" onClick={() => setMessage('Microsoft sign-in is simulated in this demo.')}><span className="grid grid-cols-2 gap-px">{['bg-red-500','bg-green-500','bg-blue-500','bg-amber-400'].map((color) => <i key={color} className={`size-1.5 ${color}`} />)}</span>Sign in with Microsoft</Button></div>
-
             <div className="-mx-6 -mb-6 mt-7 border-t border-slate-200 bg-slate-50/70 p-6 sm:-mx-9 sm:-mb-9 sm:p-8">
               <p className="mb-4 text-xs font-medium text-slate-500">Login as a different role (Demo)</p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -120,7 +118,7 @@ export default function LoginPage() {
             </div>
           </form>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-5 text-[10px] text-slate-400"><span>© 2026 Bano Qabil One. Demo frontend.</span><span>Privacy Policy · Terms of Service</span></div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-5 text-[10px] text-slate-400"><span>© 2026 Bano Qabil One. Powered by Alkhidmat Foundation.</span><span>Privacy Policy · Terms of Service</span></div>
       </section>
     </main>
   );

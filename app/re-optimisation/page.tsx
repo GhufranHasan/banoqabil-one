@@ -4,7 +4,7 @@ import { BrainCircuit, CircleAlert, RefreshCw, Sparkles } from 'lucide-react';
 import { OperationalScreen, type OperationalConfig } from '@/components/operational-screen';
 
 const config: OperationalConfig = {
-  title: 'Batch Re-optimisation', description: 'Consolidate low-fill batches and improve campus capacity utilization', role: 'Super Admin', primaryAction: 'Run Optimisation',
+  title: 'Batch Re-optimisation', description: 'Consolidate low-fill batches and improve campus capacity utilization', role: 'Admin', primaryAction: 'Run Optimisation',
   metrics: [
     { label: 'Candidate Batches', value: '48', change: '8.4%', icon: RefreshCw, tone: 'blue' },
     { label: 'Recoverable Seats', value: '312', change: '15.1%', icon: Sparkles, tone: 'green' },

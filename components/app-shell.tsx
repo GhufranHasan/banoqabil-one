@@ -58,7 +58,7 @@ const coordinatorNav = [
   { label: 'Security Fees', href: '/security-fees', icon: BadgeDollarSign },
 ] as const;
 
-export type AppRole = 'Student' | 'Teacher' | 'Coordinator' | 'Super Admin' | 'Regional Manager';
+export type AppRole = 'Student' | 'Teacher' | 'Coordinator' | 'Admin' | 'Super Admin' | 'Regional Manager';
 type AvatarVariant = AvatarChoice;
 
 function inferredAvatar(userName: string): AvatarVariant {
@@ -88,7 +88,7 @@ function getNavItems(role: AppRole) {
     { label: 'Student Follow-ups', href: '/follow-ups', icon: UsersRound },
     { label: 'My Workload', href: '/trainers/workload', icon: FileBarChart },
   ];
-  if (role === 'Super Admin') return [
+  if (role === 'Admin' || role === 'Super Admin') return [
     { label: 'Admin Dashboard', href: '/dashboard/admin', icon: Home },
     { label: 'Allocation Runs', href: '/allocation', icon: Workflow },
     { label: 'Imports', href: '/imports', icon: Import },
@@ -109,11 +109,11 @@ function getNavItems(role: AppRole) {
 }
 
 function roleHome(role: AppRole) {
-  return role === 'Student' ? '/dashboard/student' : role === 'Teacher' ? '/dashboard/teacher' : role === 'Super Admin' ? '/dashboard/admin' : role === 'Regional Manager' ? '/dashboard/regional' : '/dashboard/coordinator';
+  return role === 'Student' ? '/dashboard/student' : role === 'Teacher' ? '/dashboard/teacher' : (role === 'Admin' || role === 'Super Admin') ? '/dashboard/admin' : role === 'Regional Manager' ? '/dashboard/regional' : '/dashboard/coordinator';
 }
 
 function roleUserName(role: AppRole) {
-  return role === 'Student' ? 'Ayesha Khan' : role === 'Teacher' ? 'Sara Nawaz' : role === 'Regional Manager' ? 'Farah Malik' : 'Ahmad Saeed';
+  return role === 'Student' ? 'Ayesha Khan' : role === 'Teacher' ? 'Sara Nawaz' : (role === 'Admin' || role === 'Super Admin') ? 'Muhammad Tariq' : role === 'Regional Manager' ? 'Farah Malik' : 'Ahmad Saeed';
 }
 
 function canAccess(role: AppRole, pathname: string) {
@@ -121,10 +121,11 @@ function canAccess(role: AppRole, pathname: string) {
     Student: ['/dashboard/student', '/student/attendance', '/transfers'],
     Teacher: ['/dashboard/teacher', '/dashboard/trainer', '/batches', '/attendance', '/follow-ups', '/trainers/workload', '/settings'],
     Coordinator: ['/dashboard/coordinator', '/students', '/batches', '/trainers', '/follow-ups', '/admissions', '/reports', '/communications', '/imports', '/seat-recovery', '/seat-availability', '/security-fees', '/settings'],
+    Admin: ['/dashboard/admin', '/dashboard/regional', '/allocation', '/imports', '/seat-availability', '/re-optimisation', '/duplicates', '/audit', '/settings'],
     'Super Admin': ['/dashboard/admin', '/dashboard/regional', '/allocation', '/imports', '/seat-availability', '/re-optimisation', '/duplicates', '/audit', '/settings'],
     'Regional Manager': ['/dashboard/regional', '/seat-availability', '/trainers/workload', '/reports'],
   };
-  return allowed[role].some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  return allowed[role]?.some((path) => pathname === path || pathname.startsWith(`${path}/`)) ?? false;
 }
 
 function Brand({ href = '/dashboard/coordinator' }: { href?: string }) {
@@ -361,14 +362,14 @@ export function AppShell({ children, role, userName }: { children: React.ReactNo
   const [activeCampus, setActiveCampus] = useState<string>('campus-gulshan');
   useEffect(() => {
     const stored = sessionStorage.getItem('bqone-demo-role') as AppRole | null;
-    const effRole = stored && ['Student', 'Teacher', 'Coordinator', 'Super Admin', 'Regional Manager'].includes(stored) ? stored : (role ?? 'Coordinator');
+    const effRole = stored && ['Student', 'Teacher', 'Coordinator', 'Admin', 'Super Admin', 'Regional Manager'].includes(stored) ? stored : (role ?? 'Coordinator');
     setEffectiveRole(effRole);
     setRoleReady(true);
     const storedCampus = sessionStorage.getItem('bqone-demo-campus');
     if (storedCampus) {
       setActiveCampus(storedCampus);
     } else {
-      setActiveCampus(effRole === 'Coordinator' || effRole === 'Teacher' ? 'campus-gulshan' : 'all');
+      setActiveCampus(effRole === 'Coordinator' || effRole === 'Teacher' ? 'campus-iqbal-lahore' : 'all');
     }
   }, [role]);
   useEffect(() => {
@@ -421,32 +422,59 @@ export function AppShell({ children, role, userName }: { children: React.ReactNo
               sessionStorage.setItem('bqone-demo-campus', val);
               window.dispatchEvent(new CustomEvent('bqone-campus-change', { detail: val }));
             }}
-            className="w-[260px] border-white/10 text-white [&_select]:h-11 [&_select]:border-white/10 [&_select]:bg-white/[.08] [&_select]:text-white [&_select_option]:text-slate-900 [&_select_optgroup]:text-slate-500 [&_select_optgroup]:font-bold [&_select_optgroup]:bg-slate-100"
+            className="w-[280px] border-white/10 text-white [&_select]:h-11 [&_select]:border-white/10 [&_select]:bg-white/[.08] [&_select]:text-white [&_select_option]:text-slate-900 [&_select_optgroup]:text-slate-500 [&_select_optgroup]:font-bold [&_select_optgroup]:bg-slate-100"
           >
-            <optgroup label="Islamabad Campuses">
-              <NativeSelectOption value="campus-isb-i8">I-8 Campus (Jamia Masjid Al Furqan)</NativeSelectOption>
-              <NativeSelectOption value="campus-isb-h8">H-8 Campus (Jamia Tafheem-ul-Quran)</NativeSelectOption>
-              <NativeSelectOption value="campus-isb-g12">G-12 Campus (Lahore Leads Univ)</NativeSelectOption>
-              <NativeSelectOption value="campus-isb-kyani">Kyani Road Campus (Bharakhu)</NativeSelectOption>
-              <NativeSelectOption value="campus-isb-cbr">CBR Town Campus, Islamabad</NativeSelectOption>
-              <NativeSelectOption value="campus-isb-kahuta">Kahuta Road Campus (Alkhidmat IT)</NativeSelectOption>
-              <NativeSelectOption value="campus-isb-burma">Burma Town Campus, Islamabad</NativeSelectOption>
-            </optgroup>
-            <optgroup label="Rawalpindi Campuses & Hubs">
-              <NativeSelectOption value="campus-rwp-rcc">Rawalpindi College of Commerce (Hub)</NativeSelectOption>
-              <NativeSelectOption value="campus-rwp-satellite">Govt College Satellite Town, RWP</NativeSelectOption>
-            </optgroup>
-            <optgroup label="Karachi Campuses">
-              <NativeSelectOption value="campus-gulshan">Gulshan Campus, Karachi</NativeSelectOption>
-              <NativeSelectOption value="campus-nazimabad-girls">Nazimabad Girls Campus, Karachi</NativeSelectOption>
-            </optgroup>
-            <optgroup label="Lahore Campuses">
-              <NativeSelectOption value="campus-lahore-township">Lahore Township Campus</NativeSelectOption>
-              <NativeSelectOption value="campus-iqbal-lahore">Iqbal Campus, Lahore</NativeSelectOption>
-            </optgroup>
-            <optgroup label="Global Network">
-              <NativeSelectOption value="all">All Campuses (Network-wide)</NativeSelectOption>
-            </optgroup>
+            {effectiveRole === 'Coordinator' ? (
+              <>
+                <optgroup label="Assigned Campus (Ahmad Saeed)">
+                  <NativeSelectOption value="campus-iqbal-lahore">Iqbal Campus, Lahore (Assigned)</NativeSelectOption>
+                </optgroup>
+                <optgroup label="Demo Switcher (Simulation Only)">
+                  <NativeSelectOption value="campus-gulshan">Gulshan Campus, Karachi</NativeSelectOption>
+                  <NativeSelectOption value="campus-lahore-township">Lahore Township Campus</NativeSelectOption>
+                  <NativeSelectOption value="campus-nazimabad-girls">Nazimabad Girls Campus, Karachi</NativeSelectOption>
+                  <NativeSelectOption value="campus-isb-i8">I-8 Campus, Islamabad</NativeSelectOption>
+                </optgroup>
+              </>
+            ) : effectiveRole === 'Teacher' ? (
+              <>
+                <optgroup label="Assigned Campus">
+                  <NativeSelectOption value="campus-iqbal-lahore">Iqbal Campus, Lahore</NativeSelectOption>
+                </optgroup>
+              </>
+            ) : effectiveRole === 'Regional Manager' ? (
+              <>
+                <optgroup label="Lahore Region (Farah Malik)">
+                  <NativeSelectOption value="campus-iqbal-lahore">Iqbal Campus, Lahore</NativeSelectOption>
+                  <NativeSelectOption value="campus-lahore-township">Lahore Township Campus</NativeSelectOption>
+                </optgroup>
+                <optgroup label="Other Regional Hubs">
+                  <NativeSelectOption value="campus-gulshan">Gulshan Campus, Karachi</NativeSelectOption>
+                  <NativeSelectOption value="campus-isb-i8">I-8 Campus, Islamabad</NativeSelectOption>
+                </optgroup>
+              </>
+            ) : (
+              <>
+                <optgroup label="National Network">
+                  <NativeSelectOption value="all">All Campuses (Network-wide)</NativeSelectOption>
+                </optgroup>
+                <optgroup label="Lahore Campuses">
+                  <NativeSelectOption value="campus-iqbal-lahore">Iqbal Campus, Lahore</NativeSelectOption>
+                  <NativeSelectOption value="campus-lahore-township">Lahore Township Campus</NativeSelectOption>
+                </optgroup>
+                <optgroup label="Karachi Campuses">
+                  <NativeSelectOption value="campus-gulshan">Gulshan Campus, Karachi</NativeSelectOption>
+                  <NativeSelectOption value="campus-nazimabad-girls">Nazimabad Girls Campus, Karachi</NativeSelectOption>
+                </optgroup>
+                <optgroup label="Islamabad Campuses">
+                  <NativeSelectOption value="campus-isb-i8">I-8 Campus, Islamabad</NativeSelectOption>
+                  <NativeSelectOption value="campus-isb-h8">H-8 Campus, Islamabad</NativeSelectOption>
+                </optgroup>
+                <optgroup label="Rawalpindi Hubs">
+                  <NativeSelectOption value="campus-rwp-rcc">Rawalpindi College of Commerce</NativeSelectOption>
+                </optgroup>
+              </>
+            )}
           </NativeSelect>
           <Button onClick={() => setAssistantOpen(true)} className="h-11 rounded-xl border border-white/10 bg-white/[.08] px-3 text-white hover:bg-white/15"><Sparkles className="text-[#c6ef33]" />Ask AI</Button>
         </div>
@@ -457,11 +485,11 @@ export function AppShell({ children, role, userName }: { children: React.ReactNo
         <div className="relative">
           <button onClick={() => setProfileOpen((value) => !value)} className="flex items-center gap-2 rounded-xl p-1.5 hover:bg-white/10" aria-label="Open profile and picture options" aria-expanded={profileOpen}>
             <ProfileAvatar variant={avatarVariant} initials={initials} photoUrl={profilePhoto} />
-            <span className="hidden text-left xl:block"><span className="block text-xs font-semibold">{displayName}</span><span className="block text-[10px] text-blue-100/65">{effectiveRole}</span></span>
+            <span className="hidden text-left xl:block"><span className="block text-xs font-semibold">{displayName}</span><span className="block text-[10px] text-blue-100/65">{effectiveRole === 'Super Admin' ? 'Admin' : effectiveRole}</span></span>
             <ChevronDown className="hidden size-4 text-blue-100/70 sm:block" />
           </button>
           {profileOpen && <div className="absolute right-0 top-14 z-50 w-64 rounded-2xl border border-slate-200 bg-white p-4 text-slate-600 shadow-2xl">
-            <div className="flex items-center gap-3 border-b border-slate-100 pb-3"><ProfileAvatar variant={avatarVariant} initials={initials} photoUrl={profilePhoto} className="size-12 border-slate-200" /><div><p className="text-xs font-bold text-[#0b1f4d]">{displayName}</p><p className="mt-0.5 text-[10px] text-slate-400">{effectiveRole}</p></div></div>
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-3"><ProfileAvatar variant={avatarVariant} initials={initials} photoUrl={profilePhoto} className="size-12 border-slate-200" /><div><p className="text-xs font-bold text-[#0b1f4d]">{displayName}</p><p className="mt-0.5 text-[10px] text-slate-400">{effectiveRole === 'Super Admin' ? 'Admin' : effectiveRole}</p></div></div>
             <p className="mb-2 mt-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Profile picture</p>
             <div className="grid grid-cols-3 gap-2">
               {([['male', 'Male'], ['female', 'Female'], ['initials', 'Initials']] as const).map(([variant, label]) => <button key={variant} onClick={() => selectAvatar(variant)} className={cn('rounded-xl border p-2 text-center transition hover:border-emerald-300 hover:bg-emerald-50/40', avatarVariant === variant ? 'border-emerald-400 bg-emerald-50 ring-1 ring-emerald-300' : 'border-slate-200')}><ProfileAvatar variant={variant} initials={initials} className="mx-auto size-9 border-slate-200" /><span className="mt-1.5 block text-[9px] font-semibold text-[#17345f]">{label}</span></button>)}

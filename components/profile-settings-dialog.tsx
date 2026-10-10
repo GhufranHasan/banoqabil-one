@@ -30,6 +30,11 @@ const details: Record<AppRole, Array<{ label: string; value: string; options?: s
     { label: 'Campus', value: 'Iqbal Town Campus', options: ['Iqbal Town Campus', 'Johar Town Campus', 'Model Town Campus'] }, { label: 'Region', value: 'Lahore', options: ['Lahore', 'Karachi', 'Faisalabad'] },
     { label: 'Operational Contact', value: '042 111 262 111' },
   ],
+  Admin: [
+    { label: 'Admin ID', value: 'ADM-0001' }, { label: 'Department', value: 'Platform Operations', options: ['Platform Operations', 'Governance', 'Data Quality'] },
+    { label: 'Access Scope', value: 'National Network', options: ['National Network', 'Regional Network'] }, { label: 'Security Level', value: 'Level 4' },
+    { label: 'Office Location', value: 'Karachi Head Office' },
+  ],
   'Super Admin': [
     { label: 'Admin ID', value: 'ADM-0001' }, { label: 'Department', value: 'Platform Operations', options: ['Platform Operations', 'Governance', 'Data Quality'] },
     { label: 'Access Scope', value: 'National Network', options: ['National Network', 'Regional Network'] }, { label: 'Security Level', value: 'Level 4' },
@@ -45,7 +50,7 @@ export function ProfileSettingsDialog({ open, onOpenChange, role, userName, avat
   open: boolean; onOpenChange: (open: boolean) => void; role: AppRole; userName: string; avatar: AvatarChoice; photoUrl?: string;
   onAvatarChange: (avatar: AvatarChoice) => void; onPhotoChange: (url: string) => void;
 }) {
-  const defaultEmail = role === 'Student' ? 'ayesha@banoqabil.pk' : role === 'Teacher' ? 'sara@banoqabil.pk' : 'ahmad@banoqabil.pk';
+  const defaultEmail = role === 'Student' ? 'ayesha@banoqabil.pk' : role === 'Teacher' ? 'sara@banoqabil.pk' : (role === 'Admin' || role === 'Super Admin') ? 'tariq@banoqabil.pk' : 'ahmad@banoqabil.pk';
   const [email, setEmail] = useState(defaultEmail);
   const [mobile, setMobile] = useState('0300 1234567');
   const [verifiedEmail, setVerifiedEmail] = useState(defaultEmail);

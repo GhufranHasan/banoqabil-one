@@ -11,7 +11,7 @@ import { NativeSelect, NativeSelectOptGroup, NativeSelectOption } from '@/compon
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/toast';
 
-const validRoles: AppRole[] = ['Teacher', 'Coordinator', 'Super Admin'];
+const validRoles: AppRole[] = ['Teacher', 'Coordinator', 'Admin', 'Super Admin'];
 
 export default function SettingsPage() {
   const [role, setRole] = useState<AppRole>('Coordinator');
@@ -48,7 +48,7 @@ export default function SettingsPage() {
   };
 
   const teacher = role === 'Teacher';
-  const admin = role === 'Super Admin';
+  const admin = role === 'Admin' || role === 'Super Admin';
 
   return (
     <AppShell>
@@ -242,7 +242,7 @@ export default function SettingsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add System Setting</DialogTitle>
-            <DialogDescription>Create a network-wide setting. This capability is restricted to Super Admin.</DialogDescription>
+            <DialogDescription>Create a network-wide setting. This capability is restricted to Admin.</DialogDescription>
           </DialogHeader>
           <form
             onSubmit={(event) => {

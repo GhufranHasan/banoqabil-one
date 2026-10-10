@@ -64,7 +64,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       transfer.updatedAt = new Date().toISOString();
 
       // Persist rejection to Supabase
-      await DbAdapter.persistTransfer(id, 'REJECT', scope.userId);
+      await DbAdapter.persistTransfer(id, 'REJECTED', scope.userId);
 
       await DbAdapter.logAudit({
         actorId: scope.userId,

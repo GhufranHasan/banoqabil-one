@@ -32,14 +32,14 @@ export async function POST(req: Request) {
       await prisma.teacherAssignment.upsert({
         where: {
           teacherId_batchId: {
-            teacherId,
+            teacherId: trainerId,
             batchId,
           },
         },
         update: {},
         create: {
           id: `asgn-${batchId}-${trainerId}`,
-          teacherId,
+          teacherId: trainerId,
           batchId,
         },
       });

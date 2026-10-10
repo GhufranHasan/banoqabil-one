@@ -4,7 +4,7 @@ import { CopyCheck, Fingerprint, ShieldAlert, UsersRound } from 'lucide-react';
 import { OperationalScreen, type OperationalConfig } from '@/components/operational-screen';
 
 const config: OperationalConfig = {
-  title: 'Duplicate Resolution', description: 'Compare and safely merge possible duplicate learner profiles', role: 'Super Admin', primaryAction: 'Merge Selected',
+  title: 'Duplicate Resolution', description: 'Compare and safely merge possible duplicate learner profiles', role: 'Admin', primaryAction: 'Merge Selected',
   metrics: [
     { label: 'Potential Duplicates', value: '84', change: '6.2%', icon: UsersRound, tone: 'blue' },
     { label: 'High Confidence', value: '31', change: '9.1%', icon: Fingerprint, tone: 'amber' },

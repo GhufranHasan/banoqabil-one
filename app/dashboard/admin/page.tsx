@@ -3,14 +3,14 @@
 import { RoleDashboard, dashboardIcons, type RoleDashboardConfig } from '@/components/role-dashboard';
 
 const config: RoleDashboardConfig = {
-  role: 'Super Admin', userName: 'Ahmad Saeed', title: 'Super Admin Dashboard', description: 'Network-wide performance, governance and system operations', greeting: 'Good morning, Ahmad',
+  role: 'Admin', userName: 'Muhammad Tariq', title: 'Admin Dashboard', description: 'Network-wide performance, governance and system operations', greeting: 'Good morning, Tariq',
   metrics: [
     { label: 'Active Campuses', value: '356', change: '4.2%', icon: dashboardIcons.School, tone: 'green', note: 'Across 12 regions' },
     { label: 'Platform Users', value: '1.33M', change: '12.5%', icon: dashboardIcons.UsersRound, tone: 'blue', note: 'Learners, staff and trainers' },
     { label: 'System Availability', value: '99.98%', change: '0.2%', icon: dashboardIcons.ShieldCheck, tone: 'violet', note: 'All core services healthy' },
     { label: 'Approvals Pending', value: '37', change: '3.1%', icon: dashboardIcons.CircleAlert, tone: 'amber', note: 'Governance and access requests' },
   ],
-  primaryTitle: 'Super Admin Approval Queue', primarySubtitle: 'Network-wide governance, access and policy decisions',
+  primaryTitle: 'Admin Approval Queue', primarySubtitle: 'Network-wide governance, access and policy decisions',
   activities: [
     { name: 'Regional access request', detail: 'Farah Malik · Lahore Region', status: 'Review', meta: 'Verify expanded reporting scope' },
     { name: 'New campus activation', detail: 'Sargodha 47 Pull Campus', status: 'Pending', meta: 'Infrastructure verification complete' },

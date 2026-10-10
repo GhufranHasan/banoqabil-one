@@ -15,6 +15,9 @@ export interface NLQueryResult {
     isGlobal: boolean;
   };
   securityAlert?: boolean;
+  aiProvider?: string;
+  model?: string;
+  aiSource?: string;
   data: Record<string, unknown>[];
 }
 
