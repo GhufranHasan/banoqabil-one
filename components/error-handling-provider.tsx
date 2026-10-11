@@ -44,12 +44,12 @@ export function ErrorHandlingProvider({ children }: { children: React.ReactNode 
       show({ title: 'Request failed', message: msg || 'The request could not be completed.' });
     };
     const handleReportedError = (event: Event) => show((event as CustomEvent<SystemError>).detail);
-    window.addEventListener('error', handleError);
-    window.addEventListener('unhandledrejection', handleRejection);
+    window.addEventListener('error', handleError, true);
+    window.addEventListener('unhandledrejection', handleRejection, true);
     window.addEventListener(APP_ERROR_EVENT, handleReportedError);
     return () => {
-      window.removeEventListener('error', handleError);
-      window.removeEventListener('unhandledrejection', handleRejection);
+      window.removeEventListener('error', handleError, true);
+      window.removeEventListener('unhandledrejection', handleRejection, true);
       window.removeEventListener(APP_ERROR_EVENT, handleReportedError);
     };
   }, []);

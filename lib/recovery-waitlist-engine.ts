@@ -40,11 +40,17 @@ export class SeatRecoveryEngine {
   /**
    * Hero 3: Get all candidates for seat recovery
    */
-  public static getRecoveryCandidates(campusId?: string): RecoveryCandidate[] {
+  public static getRecoveryCandidates(campusId?: string | string[]): RecoveryCandidate[] {
     const state = dbStore.getState();
 
     const deadFollowUps = state.followUps.filter((f) => {
-      if (campusId && f.campusId !== campusId) return false;
+      if (campusId) {
+        if (Array.isArray(campusId)) {
+          if (!campusId.includes(f.campusId)) return false;
+        } else if (f.campusId !== campusId) {
+          return false;
+        }
+      }
       return f.reasonCode === 'NO_SHOW' || f.status === 'UNREACHABLE' || f.status === 'WITHDRAWN';
     });
 

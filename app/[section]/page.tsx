@@ -328,15 +328,18 @@ export default function GenericSectionPage() {
     setCurrentRole(storedRole);
 
     const storedCampus = sessionStorage.getItem('bqone-demo-campus');
-    if (storedCampus) {
+    if (storedRole === 'Coordinator' || storedRole === 'Teacher') {
+      setActiveCampus('campus-isb-h8');
+    } else if (storedCampus) {
       setActiveCampus(storedCampus);
     } else {
-      setActiveCampus(storedRole === 'Coordinator' || storedRole === 'Teacher' ? 'campus-iqbal-lahore' : 'all');
+      setActiveCampus('all');
     }
 
     const handleCampusChange = (e: Event) => {
       const customEvent = e as CustomEvent<string>;
-      if (customEvent.detail) {
+      // Coordinators and Teachers are strictly restricted from switching campuses
+      if (storedRole !== 'Coordinator' && storedRole !== 'Teacher' && customEvent.detail) {
         setActiveCampus(customEvent.detail);
       }
     };
@@ -502,18 +505,18 @@ export default function GenericSectionPage() {
                 Campus Scope: <span className="text-emerald-700">{activeCampusName}</span>
               </h2>
               <Badge className="bg-emerald-100 text-[10px] font-semibold text-emerald-800 border-emerald-200">
-                {activeCampus === 'campus-iqbal-lahore'
-                  ? 'Assigned Campus (Ahmad Saeed)'
+                {currentRole === 'Coordinator' || currentRole === 'Teacher'
+                  ? 'Assigned Campus (RBAC Locked)'
+                  : activeCampus === 'campus-iqbal-lahore'
+                  ? 'Iqbal Campus, Lahore'
                   : activeCampus === 'all'
                   ? 'Global Network View'
-                  : 'Demo Switcher View'}
+                  : `${activeCampusName} View`}
               </Badge>
             </div>
             <p className="mt-0.5 text-xs text-slate-600">
               {currentRole === 'Coordinator'
-                ? activeCampus === 'campus-iqbal-lahore'
-                  ? 'Campus Coordinator Ahmad Saeed is assigned to Iqbal Campus, Lahore. All records below belong exclusively to this campus.'
-                  : `Currently viewing ${activeCampusName}. In production, coordinators only access their assigned jurisdiction.`
+                ? 'Campus Coordinator Ahmad Saeed is strictly assigned to H-8 Campus, Islamabad. All records below belong exclusively to this campus. Inter-campus and cross-city data access is blocked by RBAC security.'
                 : `Viewing operational records filtered to ${activeCampusName}.`}
             </p>
           </div>

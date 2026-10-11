@@ -4,9 +4,9 @@ import { SeatRecoveryEngine } from '@/lib/recovery-waitlist-engine';
 
 export async function GET(req: Request) {
   const scope = resolveScopeContext(req);
-  const campusId = scope.isGlobal ? undefined : scope.campusIds?.[0];
+  const campusFilter = scope.isGlobal ? undefined : scope.campusIds;
 
-  const candidates = SeatRecoveryEngine.getRecoveryCandidates(campusId);
+  const candidates = SeatRecoveryEngine.getRecoveryCandidates(campusFilter);
 
   return NextResponse.json({
     success: true,

@@ -80,11 +80,12 @@ export default function SeatRecoveryPage() {
           description: `Dead seat in ${candidate.batchName} released. Matched ${data.matches.length} waitlist candidates.`,
           type: 'success',
         });
-        setCandidates((prev) => prev.filter((c) => c.enrollmentId !== candidate.enrollmentId));
-        setWaitlistMatches(data.matches);
-        if (candidates.length > 1) {
-          setSelectedCandidate(candidates.find((c) => c.enrollmentId !== candidate.enrollmentId));
-        }
+        setCandidates((prev) => {
+          const remaining = prev.filter((c) => c.enrollmentId !== candidate.enrollmentId);
+          setSelectedCandidate(remaining.length > 0 ? remaining[0] : null);
+          return remaining;
+        });
+        setWaitlistMatches(data.matches || []);
         setMessage(`Seat released for ${candidate.studentName}. Ready to offer to top waitlist applicant.`);
       }
     } catch {
@@ -128,7 +129,7 @@ export default function SeatRecoveryPage() {
   );
 
   return (
-    <AppShell>
+    <AppShell role="Coordinator">
       <div className="mb-3 flex items-center gap-2 text-[10px] text-slate-400">
         <span>Seat Operations</span>
         <ArrowRight className="size-3" />

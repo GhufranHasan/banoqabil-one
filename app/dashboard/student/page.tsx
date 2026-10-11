@@ -28,7 +28,7 @@ const config: RoleDashboardConfig = {
     { label: 'Rich Learning View', description: 'See modules, certificates and detailed progress.', href: '/dashboard/student/rich', icon: dashboardIcons.GraduationCap },
     { label: 'My Attendance', description: 'Review attendance and session history.', href: '/student/attendance', icon: dashboardIcons.CalendarCheck },
     { label: 'Transfer Request', description: 'Explore another campus, batch or timing.', href: '/transfers', icon: dashboardIcons.MapPinned },
-    { label: 'Learning Support', description: 'Ask the AI assistant for course guidance.', href: '/dashboard/student', icon: dashboardIcons.CircleAlert },
+    { label: 'Student Support', description: 'Contact your instructor or campus coordinator.', href: '/dashboard/student', icon: dashboardIcons.CircleAlert },
   ],
   notice: 'Your JavaScript quiz is due Friday at 6:00 PM.',
 };

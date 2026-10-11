@@ -14,9 +14,11 @@ import {
   CircleHelp,
   ClipboardCheck,
   FileBarChart,
+  FileSpreadsheet,
   GraduationCap,
   Home,
   Import,
+  Lock,
   LogOut,
   Menu,
   MessageSquare,
@@ -52,7 +54,7 @@ const coordinatorNav = [
   { label: 'Admissions', href: '/admissions', icon: Sparkles },
   { label: 'Reports', href: '/reports', icon: FileBarChart },
   { label: 'Communications', href: '/communications', icon: MessageSquare },
-  { label: 'Imports', href: '/imports', icon: Import },
+  { label: 'Excel Imports', href: '/imports', icon: FileSpreadsheet },
   { label: 'Seat Recovery', href: '/seat-recovery', icon: Workflow },
   { label: 'Seat Availability', href: '/seat-availability', icon: Building2 },
   { label: 'Security Fees', href: '/security-fees', icon: BadgeDollarSign },
@@ -91,7 +93,7 @@ function getNavItems(role: AppRole) {
   if (role === 'Admin' || role === 'Super Admin') return [
     { label: 'Admin Dashboard', href: '/dashboard/admin', icon: Home },
     { label: 'Allocation Runs', href: '/allocation', icon: Workflow },
-    { label: 'Imports', href: '/imports', icon: Import },
+    { label: 'Excel Imports', href: '/imports', icon: FileSpreadsheet },
     { label: 'Seat Availability', href: '/seat-availability', icon: Building2 },
     { label: 'Re-optimisation', href: '/re-optimisation', icon: Sparkles },
     { label: 'Duplicates', href: '/duplicates', icon: UsersRound },
@@ -150,7 +152,7 @@ function Navigation({ role, onAssistant, onNavigate }: { role: AppRole; onAssist
     <div className="flex min-h-0 flex-1 flex-col">
       <nav className="bq-scroll-dark flex-1 space-y-1 overflow-y-auto px-3 py-5">
         {navItems.map(({ label, href, icon: Icon }) => {
-          const active = pathname === href || (href !== '/dashboard/coordinator' && pathname.startsWith(href));
+          const active = pathname === href || (!href.startsWith('/dashboard/') && href !== '/' && pathname.startsWith(`${href}/`));
           return (
             <Link
               key={href}
@@ -166,9 +168,11 @@ function Navigation({ role, onAssistant, onNavigate }: { role: AppRole; onAssist
             </Link>
           );
         })}
-        <button onClick={onAssistant} className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-medium text-blue-50/78 transition hover:bg-white/[.07] hover:text-white">
-          <Bot className="size-[18px]" /> AI Assistant
-        </button>
+        {role !== 'Student' && (
+          <button onClick={onAssistant} className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-[13px] font-medium text-blue-50/78 transition hover:bg-white/[.07] hover:text-white">
+            <Bot className="size-[18px]" /> AI Assistant
+          </button>
+        )}
         {(role === 'Coordinator' || role === 'Teacher') && <Link href="/settings" onClick={onNavigate} className="flex h-10 items-center gap-3 rounded-xl px-3 text-[13px] font-medium text-blue-50/78 transition hover:bg-white/[.07] hover:text-white"><Settings className="size-[18px]" />{role === 'Teacher' ? 'Teaching Settings' : 'Campus Settings'}</Link>}
       </nav>
       <div className="m-4 rounded-2xl border border-white/15 bg-white/[.04] p-5 text-sm text-white shadow-inner">
@@ -181,7 +185,7 @@ function Navigation({ role, onAssistant, onNavigate }: { role: AppRole; onAssist
   );
 }
 
-function Assistant({ open, onOpenChange, role }: { open: boolean; onOpenChange: (open: boolean) => void; role?: AppRole }) {
+function Assistant({ open, onOpenChange, role, campus }: { open: boolean; onOpenChange: (open: boolean) => void; role?: AppRole; campus?: string }) {
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<Array<{
@@ -209,11 +213,13 @@ function Assistant({ open, onOpenChange, role }: { open: boolean; onOpenChange: 
     setLoading(true);
 
     try {
+      const targetCampus = campus || (role === 'Coordinator' ? 'campus-isb-h8' : 'all');
       const res = await fetch('/api/assistant/query', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-demo-role': role || 'Coordinator',
+          'x-demo-campus': targetCampus,
         },
         body: JSON.stringify({ question: value }),
       });
@@ -360,16 +366,20 @@ export function AppShell({ children, role, userName }: { children: React.ReactNo
   const [profilePhoto, setProfilePhoto] = useState('');
   const [roleReady, setRoleReady] = useState(false);
   const [activeCampus, setActiveCampus] = useState<string>('campus-gulshan');
+  const [isResettingDemo, setIsResettingDemo] = useState(false);
   useEffect(() => {
     const stored = sessionStorage.getItem('bqone-demo-role') as AppRole | null;
     const effRole = stored && ['Student', 'Teacher', 'Coordinator', 'Admin', 'Super Admin', 'Regional Manager'].includes(stored) ? stored : (role ?? 'Coordinator');
     setEffectiveRole(effRole);
     setRoleReady(true);
     const storedCampus = sessionStorage.getItem('bqone-demo-campus');
-    if (storedCampus) {
+    if (effRole === 'Coordinator' || effRole === 'Teacher') {
+      setActiveCampus('campus-isb-h8');
+      sessionStorage.setItem('bqone-demo-campus', 'campus-isb-h8');
+    } else if (storedCampus) {
       setActiveCampus(storedCampus);
     } else {
-      setActiveCampus(effRole === 'Coordinator' || effRole === 'Teacher' ? 'campus-iqbal-lahore' : 'all');
+      setActiveCampus(effRole === 'Regional Manager' ? 'campus-isb-h8' : 'all');
     }
   }, [role]);
   useEffect(() => {
@@ -414,69 +424,67 @@ export function AppShell({ children, role, userName }: { children: React.ReactNo
           {globalSearch && <div className="absolute top-12 z-50 w-full rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600 shadow-2xl"><p className="font-semibold text-[#0b1f4d]">Demo search results</p><p className="mt-1">3 students, 2 batches and 1 campus match “{globalSearch}”.</p></div>}
         </div>
         <div className="ml-auto hidden items-center gap-3 md:flex">
-          <NativeSelect
-            value={activeCampus}
-            onChange={(e) => {
-              const val = e.target.value;
-              setActiveCampus(val);
-              sessionStorage.setItem('bqone-demo-campus', val);
-              window.dispatchEvent(new CustomEvent('bqone-campus-change', { detail: val }));
-            }}
-            className="w-[280px] border-white/10 text-white [&_select]:h-11 [&_select]:border-white/10 [&_select]:bg-white/[.08] [&_select]:text-white [&_select_option]:text-slate-900 [&_select_optgroup]:text-slate-500 [&_select_optgroup]:font-bold [&_select_optgroup]:bg-slate-100"
-          >
-            {effectiveRole === 'Coordinator' ? (
-              <>
-                <optgroup label="Assigned Campus (Ahmad Saeed)">
-                  <NativeSelectOption value="campus-iqbal-lahore">Iqbal Campus, Lahore (Assigned)</NativeSelectOption>
-                </optgroup>
-                <optgroup label="Demo Switcher (Simulation Only)">
-                  <NativeSelectOption value="campus-gulshan">Gulshan Campus, Karachi</NativeSelectOption>
-                  <NativeSelectOption value="campus-lahore-township">Lahore Township Campus</NativeSelectOption>
-                  <NativeSelectOption value="campus-nazimabad-girls">Nazimabad Girls Campus, Karachi</NativeSelectOption>
-                  <NativeSelectOption value="campus-isb-i8">I-8 Campus, Islamabad</NativeSelectOption>
-                </optgroup>
-              </>
-            ) : effectiveRole === 'Teacher' ? (
-              <>
-                <optgroup label="Assigned Campus">
-                  <NativeSelectOption value="campus-iqbal-lahore">Iqbal Campus, Lahore</NativeSelectOption>
-                </optgroup>
-              </>
-            ) : effectiveRole === 'Regional Manager' ? (
-              <>
-                <optgroup label="Lahore Region (Farah Malik)">
-                  <NativeSelectOption value="campus-iqbal-lahore">Iqbal Campus, Lahore</NativeSelectOption>
-                  <NativeSelectOption value="campus-lahore-township">Lahore Township Campus</NativeSelectOption>
-                </optgroup>
-                <optgroup label="Other Regional Hubs">
-                  <NativeSelectOption value="campus-gulshan">Gulshan Campus, Karachi</NativeSelectOption>
-                  <NativeSelectOption value="campus-isb-i8">I-8 Campus, Islamabad</NativeSelectOption>
-                </optgroup>
-              </>
-            ) : (
-              <>
-                <optgroup label="National Network">
-                  <NativeSelectOption value="all">All Campuses (Network-wide)</NativeSelectOption>
-                </optgroup>
-                <optgroup label="Lahore Campuses">
-                  <NativeSelectOption value="campus-iqbal-lahore">Iqbal Campus, Lahore</NativeSelectOption>
-                  <NativeSelectOption value="campus-lahore-township">Lahore Township Campus</NativeSelectOption>
-                </optgroup>
-                <optgroup label="Karachi Campuses">
-                  <NativeSelectOption value="campus-gulshan">Gulshan Campus, Karachi</NativeSelectOption>
-                  <NativeSelectOption value="campus-nazimabad-girls">Nazimabad Girls Campus, Karachi</NativeSelectOption>
-                </optgroup>
-                <optgroup label="Islamabad Campuses">
-                  <NativeSelectOption value="campus-isb-i8">I-8 Campus, Islamabad</NativeSelectOption>
-                  <NativeSelectOption value="campus-isb-h8">H-8 Campus, Islamabad</NativeSelectOption>
-                </optgroup>
-                <optgroup label="Rawalpindi Hubs">
-                  <NativeSelectOption value="campus-rwp-rcc">Rawalpindi College of Commerce</NativeSelectOption>
-                </optgroup>
-              </>
-            )}
-          </NativeSelect>
-          <Button onClick={() => setAssistantOpen(true)} className="h-11 rounded-xl border border-white/10 bg-white/[.08] px-3 text-white hover:bg-white/15"><Sparkles className="text-[#c6ef33]" />Ask AI</Button>
+          {effectiveRole === 'Coordinator' || effectiveRole === 'Teacher' ? (
+            <div
+              id="assigned-campus-indicator"
+              className="flex h-11 items-center gap-2.5 rounded-xl border border-emerald-400/30 bg-emerald-950/40 px-3.5 text-xs font-semibold text-emerald-200 shadow-inner backdrop-blur-sm select-none cursor-default"
+              title="Assigned campus is strictly locked to H-8 Campus, Islamabad under RBAC security policy. You cannot switch campuses."
+            >
+              <Lock className="size-3.5 text-emerald-300 shrink-0" />
+              <span className="truncate max-w-[170px] text-white">H-8 Campus, Islamabad</span>
+              <span className="rounded bg-emerald-400/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-300 border border-emerald-400/30">
+                Assigned (Locked)
+              </span>
+            </div>
+          ) : (
+            <NativeSelect
+              value={activeCampus}
+              onChange={(e) => {
+                const val = e.target.value;
+                setActiveCampus(val);
+                sessionStorage.setItem('bqone-demo-campus', val);
+                window.dispatchEvent(new CustomEvent('bqone-campus-change', { detail: val }));
+              }}
+              className="w-[280px] border-white/10 text-white [&_select]:h-11 [&_select]:border-white/10 [&_select]:bg-white/[.08] [&_select]:text-white [&_select_option]:text-slate-900 [&_select_optgroup]:text-slate-500 [&_select_optgroup]:font-bold [&_select_optgroup]:bg-slate-100"
+            >
+              {effectiveRole === 'Regional Manager' ? (
+                <>
+                  <optgroup label="Lahore Region (Farah Malik)">
+                    <NativeSelectOption value="campus-iqbal-lahore">Iqbal Campus, Lahore</NativeSelectOption>
+                    <NativeSelectOption value="campus-lahore-township">Lahore Township Campus</NativeSelectOption>
+                  </optgroup>
+                  <optgroup label="Other Regional Hubs">
+                    <NativeSelectOption value="campus-gulshan">Gulshan Campus, Karachi</NativeSelectOption>
+                    <NativeSelectOption value="campus-isb-i8">I-8 Campus, Islamabad</NativeSelectOption>
+                  </optgroup>
+                </>
+              ) : (
+                <>
+                  <optgroup label="National Network">
+                    <NativeSelectOption value="all">All Campuses (Network-wide)</NativeSelectOption>
+                  </optgroup>
+                  <optgroup label="Lahore Campuses">
+                    <NativeSelectOption value="campus-iqbal-lahore">Iqbal Campus, Lahore</NativeSelectOption>
+                    <NativeSelectOption value="campus-lahore-township">Lahore Township Campus</NativeSelectOption>
+                  </optgroup>
+                  <optgroup label="Karachi Campuses">
+                    <NativeSelectOption value="campus-gulshan">Gulshan Campus, Karachi</NativeSelectOption>
+                    <NativeSelectOption value="campus-nazimabad-girls">Nazimabad Girls Campus, Karachi</NativeSelectOption>
+                  </optgroup>
+                  <optgroup label="Islamabad Campuses">
+                    <NativeSelectOption value="campus-isb-i8">I-8 Campus, Islamabad</NativeSelectOption>
+                    <NativeSelectOption value="campus-isb-h8">H-8 Campus, Islamabad</NativeSelectOption>
+                  </optgroup>
+                  <optgroup label="Rawalpindi Hubs">
+                    <NativeSelectOption value="campus-rwp-rcc">Rawalpindi College of Commerce</NativeSelectOption>
+                  </optgroup>
+                </>
+              )}
+            </NativeSelect>
+          )}
+          {effectiveRole !== 'Student' && (
+            <Button onClick={() => setAssistantOpen(true)} className="h-11 rounded-xl border border-white/10 bg-white/[.08] px-3 text-white hover:bg-white/15"><Sparkles className="text-[#c6ef33]" />Ask AI</Button>
+          )}
         </div>
         <div className="relative">
           <button onClick={() => setNotificationsOpen((value) => !value)} className="relative grid size-10 place-items-center rounded-xl hover:bg-white/10" aria-label="Notifications"><Bell className="size-5" /><span className="absolute right-1.5 top-1.5 grid size-4 place-items-center rounded-full bg-[#c6ef33] text-[8px] font-black text-[#123774]">6</span></button>
@@ -496,22 +504,45 @@ export function AppShell({ children, role, userName }: { children: React.ReactNo
             </div>
             <button onClick={() => { setProfileOpen(false); setProfileSettingsOpen(true); }} className="mt-3 flex h-9 w-full items-center gap-2 rounded-lg px-2 text-xs font-medium text-[#17345f] hover:bg-slate-50"><Settings className="size-4" />Profile settings</button>
             <button
+              disabled={isResettingDemo}
               onClick={async () => {
-                setProfileOpen(false);
+                setIsResettingDemo(true);
+                toast.add({ title: 'Resetting Demo Data', description: 'Restoring clean baseline and planted patterns…', type: 'info' });
                 try {
                   const res = await fetch('/api/seed/reset', { method: 'POST' });
                   const data = (await res.json()) as any;
-                  if (data.success) {
-                    toast.add({ title: 'Demo Reset', description: 'Database state reset to clean seed baseline with all 8 planted patterns.', type: 'success' });
-                    window.location.reload();
+                  if (res.ok && data.success) {
+                    toast.add({
+                      title: 'Demo Data Reset',
+                      description: data.syncedToDatabase
+                        ? 'Database & in-memory baseline reset to clean state with all 8 planted scenarios.'
+                        : 'In-memory baseline restored successfully (offline fallback).',
+                      type: 'success',
+                    });
+                    setProfileOpen(false);
+                    setTimeout(() => window.location.reload(), 600);
+                  } else {
+                    const errMsg = data?.error?.message || data?.message || 'Could not reset demo database.';
+                    toast.add({ title: 'Reset Issue', description: errMsg, type: 'error' });
                   }
-                } catch {
-                  toast.add({ title: 'Reset failed', description: 'Could not reset demo database.', type: 'error' });
+                } catch (err: any) {
+                  toast.add({
+                    title: 'Reset failed',
+                    description: err?.message || 'Network error occurred while resetting demo data.',
+                    type: 'error',
+                  });
+                } finally {
+                  setIsResettingDemo(false);
                 }
               }}
-              className="flex h-9 w-full items-center gap-2 rounded-lg px-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
+              className="flex h-9 w-full items-center gap-2 rounded-lg px-2 text-xs font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
             >
-              <Sparkles className="size-4" />Reset demo data
+              {isResettingDemo ? (
+                <span className="size-4 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" />
+              ) : (
+                <Sparkles className="size-4" />
+              )}
+              {isResettingDemo ? 'Resetting demo data…' : 'Reset demo data'}
             </button>
             <Link href="/" className="flex h-9 items-center gap-2 rounded-lg px-2 text-xs font-medium text-red-600 hover:bg-red-50"><LogOut className="size-4" />Sign out</Link>
           </div>}
@@ -531,7 +562,7 @@ export function AppShell({ children, role, userName }: { children: React.ReactNo
         <main className="min-h-[calc(100vh-82px)] rounded-tl-[26px] bg-[#f8fafc] p-4 sm:p-6 xl:p-7 2xl:p-8">{children}</main>
       </div>
 
-      <Assistant open={assistantOpen} onOpenChange={setAssistantOpen} role={effectiveRole} />
+      <Assistant open={assistantOpen} onOpenChange={setAssistantOpen} role={effectiveRole} campus={activeCampus} />
       <ProfileSettingsDialog open={profileSettingsOpen} onOpenChange={setProfileSettingsOpen} role={effectiveRole} userName={displayName} avatar={avatarVariant} photoUrl={profilePhoto} onAvatarChange={persistAvatar} onPhotoChange={persistPhoto} />
     </div>
   );

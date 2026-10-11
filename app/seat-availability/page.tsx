@@ -105,7 +105,7 @@ export default function SeatAvailabilityPage() {
         <StatCard label="Total Network Capacity" value={String(summary.totalCapacity)} change="Active Session BQ 5.0" icon={Building2} tone="blue" />
         <StatCard label="Enrolled Students" value={String(summary.totalOccupied)} change={`${summary.avgFillRatePct}% Average Fill`} icon={UsersRound} tone="green" />
         <StatCard label="Available Seats" value={String(summary.totalAvailable)} change="Open for placement" icon={Armchair} tone="amber" />
-        <StatCard label="Campuses Tracked" value="3 Campuses" change="Gulshan, Lahore, Nazimabad" icon={TicketCheck} tone="violet" />
+        <StatCard label="Campuses Tracked" value={`${chartData.length} Campus${chartData.length === 1 ? '' : 'es'}`} change={chartData.map((c) => c.campus).join(', ') || 'Scoped view'} icon={TicketCheck} tone="violet" />
       </div>
 
       <div className="grid gap-4 2xl:grid-cols-[minmax(0,1.3fr)_minmax(0,0.7fr)]">

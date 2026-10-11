@@ -1,9 +1,16 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/db';
 import { createInitialDatabaseState } from '../lib/demo-data';
 
-const prisma = new PrismaClient();
-
 export async function seedSupabase() {
+  console.log('🌱 Starting Supabase database synchronization & seeding...');
+
+  try {
+    await (prisma as any).$queryRaw`SELECT 1`;
+  } catch (connErr: any) {
+    console.warn('⚠️ Supabase database unreachable or Prisma ungenerated:', connErr?.message);
+    throw new Error(`Database connection failed: ${connErr?.message || 'Offline'}`);
+  }
+
   console.log('🌱 Starting Supabase database synchronization & seeding...');
   const state = createInitialDatabaseState();
 
@@ -438,8 +445,13 @@ export async function seedSupabase() {
 if (process.argv[1]?.includes('seed-supabase')) {
   seedSupabase()
     .catch((err) => {
-      console.error('❌ Seeding failed:', err);
+      console.error('❌ Seeding failed:', err?.message || err);
       process.exit(1);
     })
-    .finally(() => prisma.$disconnect());
+    .finally(() => {
+      if (typeof (prisma as any).$disconnect === 'function') {
+        (prisma as any).$disconnect().catch(() => {});
+      }
+    });
 }
+

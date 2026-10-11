@@ -540,6 +540,124 @@ export function createInitialDatabaseState(): DatabaseState {
     });
   }
 
+  // 5. Planted Islamabad H-8 Campus At-Risk cases (9 cases for Coordinator Ahmad Saeed)
+  const isbH8Cases = [
+    { name: 'Danish Ali', att: 54, priority: 'HIGH', code: 'CONSECUTIVE_ABSENCE', reason: 'Attendance below 65%' },
+    { name: 'Shoaib Khan', att: 48, priority: 'CRITICAL', code: 'CERT_IMPOSSIBLE', reason: 'Laptop setup assistance & attendance critical' },
+    { name: 'Farhan Malik', att: 58, priority: 'HIGH', code: 'LOW_ATTENDANCE', reason: 'Batch timing conflict' },
+    { name: 'Hamza Abbasi', att: 52, priority: 'CRITICAL', code: 'LOW_ATTENDANCE', reason: 'Attendance below 60%' },
+    { name: 'Maryam Bibi', att: 55, priority: 'HIGH', code: 'LOW_ATTENDANCE', reason: 'Lab equipment access aid' },
+    { name: 'Saad Rehman', att: 59, priority: 'MEDIUM', code: 'LOW_ATTENDANCE', reason: 'Shift change request' },
+    { name: 'Noman Ijaz', att: 51, priority: 'CRITICAL', code: 'CERT_IMPOSSIBLE', reason: 'Attendance 51%, exam registration at risk' },
+    { name: 'Junaid Safdar', att: 57, priority: 'HIGH', code: 'LOW_ATTENDANCE', reason: 'Transportation issue' },
+    { name: 'Adnan Khan', att: 53, priority: 'CRITICAL', code: 'LOW_ATTENDANCE', reason: 'Attendance below 55%' },
+  ] as const;
+
+  isbH8Cases.forEach((item, idx) => {
+    const stuId = `stu-isb-h8-${idx + 1}`;
+    const student: Student = {
+      id: stuId,
+      fullName: item.name,
+      normalizedName: item.name.toLowerCase(),
+      gender: idx % 2 === 0 ? 'MALE' : 'FEMALE',
+      dateOfBirth: '2004-03-15',
+      isMinor: false,
+      phoneNormalized: `+9230555${String(idx + 1).padStart(4, '0')}`,
+      emailNormalized: `${item.name.toLowerCase().replace(/\s+/g, '.')}@isb.banoqabil.pk`,
+      cnicMasked: `61101-•••••••-${idx + 1}`,
+      city: 'Islamabad',
+      hasLaptop: true,
+    };
+    students.push(student);
+
+    const enrollment: Enrollment = {
+      id: `enr-isb-h8-${idx + 1}`,
+      studentId: stuId,
+      batchId: 'batch-wd-isb-i8-m',
+      sessionId: 'bq-5.0',
+      status: 'AT_RISK',
+      allocatedAt: '2026-01-05',
+    };
+    enrollments.push(enrollment);
+
+    followUps.push({
+      id: `fol-isb-h8-${idx + 1}`,
+      studentId: stuId,
+      studentName: item.name,
+      enrollmentId: enrollment.id,
+      batchId: 'batch-wd-isb-i8-m',
+      batchName: 'WD-ISB-H8-M',
+      campusId: 'campus-isb-h8',
+      campusName: 'H-8 Campus, Islamabad (Jamia Tafheem-ul-Quran)',
+      courseName: 'Web Development',
+      reasonCode: item.code,
+      priority: item.priority as any,
+      score: 80,
+      explanation: `${item.priority} — ${item.name} · H-8 Campus · ${item.reason}. Attendance ${item.att}%.`,
+      explanationUrdu: `${item.name} — اسلام آباد H-8 کیمپس۔ حاضری ${item.att} فیصد۔ فوری فالو اپ درکار ہے۔`,
+      attendancePct: item.att,
+      sessionsRemaining: 8,
+      status: 'PENDING',
+      notes: [],
+      createdAt: new Date().toISOString(),
+    });
+  });
+
+  // 6. Planted Islamabad H-8 Campus Dead Seat Recovery cases (10 no-show cases for Coordinator Ahmad Saeed)
+  const isbNoShowCases = [
+    'Bilal Ahmed', 'Usman Tariq', 'Hassan Raza', 'Zubair Shah', 'Haris Mehmood',
+    'Waleed Iqbal', 'Kashif Mehmood', 'Faisal Javed', 'Taimoor Baig', 'Shahzaib Ali'
+  ];
+
+  isbNoShowCases.forEach((name, idx) => {
+    const stuId = `stu-isb-ns-${idx + 1}`;
+    students.push({
+      id: stuId,
+      fullName: name,
+      normalizedName: name.toLowerCase(),
+      gender: 'MALE',
+      dateOfBirth: '2003-05-10',
+      isMinor: false,
+      phoneNormalized: `+9230677${String(idx + 1).padStart(4, '0')}`,
+      emailNormalized: `${name.toLowerCase().replace(/\s+/g, '.')}@isb.banoqabil.pk`,
+      cnicMasked: `61101-•••••••-9${idx}`,
+      city: 'Islamabad',
+      hasLaptop: true,
+    });
+
+    const enrId = `enr-isb-ns-${idx + 1}`;
+    enrollments.push({
+      id: enrId,
+      studentId: stuId,
+      batchId: 'batch-wd-isb-i8-m',
+      sessionId: 'bq-5.0',
+      status: 'AT_RISK',
+      allocatedAt: '2026-01-05',
+    });
+
+    followUps.push({
+      id: `fol-isb-ns-${idx + 1}`,
+      studentId: stuId,
+      studentName: name,
+      enrollmentId: enrId,
+      batchId: 'batch-wd-isb-i8-m',
+      batchName: 'WD-ISB-H8-M',
+      campusId: 'campus-isb-h8',
+      campusName: 'H-8 Campus, Islamabad (Jamia Tafheem-ul-Quran)',
+      courseName: 'Web Development',
+      reasonCode: 'NO_SHOW',
+      priority: 'CRITICAL',
+      score: 95,
+      explanation: `CRITICAL — ${name} · H-8 Campus · Unreachable candidate (18 consecutive absences). Ready for dead seat recovery.`,
+      explanationUrdu: `${name} — اسلام آباد H-8 کیمپس۔ 18 مسلسل غیر حاضریاں۔ نشست کی بحالی کے لیے تیار۔`,
+      attendancePct: 0,
+      sessionsRemaining: 0,
+      status: 'UNREACHABLE',
+      notes: [{ id: `not-isb-${idx + 1}`, author: 'Ahmad Saeed', text: 'Called 3 times across 2 weeks, no answer', createdAt: '2026-02-15' }],
+      createdAt: new Date().toISOString(),
+    });
+  });
+
   // 4. Populate ~350 realistic students distributed across batches
   const firstNamesM = ['Ali', 'Usman', 'Hamza', 'Bilal', 'Zain', 'Kashif', 'Haris', 'Danish', 'Fahad', 'Mustafa', 'Rehan', 'Omer', 'Saqib', 'Talha', 'Waqas'];
   const firstNamesF = ['Ayesha', 'Sana', 'Hira', 'Mariam', 'Zainab', 'Iqra', 'Fatima', 'Sadia', 'Bushra', 'Laiba', 'Maha', 'Anum', 'Kiran', 'Noor', 'Mahnoor'];

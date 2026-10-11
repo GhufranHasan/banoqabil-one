@@ -7,8 +7,8 @@ export const DEMO_PERSONAS: Record<Role, ScopeContext> = {
     role: 'COORDINATOR',
     sessionId: 'bq-5.0',
     userName: 'Ahmad Saeed',
-    campusIds: ['campus-gulshan'],
-    regionIds: ['region-sindh-south'],
+    campusIds: ['campus-isb-h8', 'campus-gulshan'],
+    regionIds: ['region-isb-ict', 'region-sindh-south'],
     isGlobal: false,
   },
   SUPER_ADMIN: {
@@ -107,13 +107,33 @@ export function resolveScopeContext(req?: Request): ScopeContext {
       .replace(/[\s-]+/g, '_') as Role;
 
     if (cleanRole in DEMO_PERSONAS) {
-      return DEMO_PERSONAS[cleanRole];
+      const persona = DEMO_PERSONAS[cleanRole];
+      const rawCampus = req.headers.get('x-demo-campus') || url.searchParams.get('campusId');
+      if (cleanRole === 'COORDINATOR') {
+        const activeCampusId = rawCampus || 'campus-isb-h8';
+        return {
+          ...persona,
+          campusIds: [activeCampusId],
+          regionIds: ['region-isb-ict'],
+        };
+      }
+      if (rawCampus && !persona.isGlobal) {
+        return {
+          ...persona,
+          campusIds: [rawCampus],
+        };
+      }
+      return persona;
     }
   } catch {
     // Fallback if URL parsing fails
   }
 
-  return DEMO_PERSONAS.COORDINATOR;
+  return {
+    ...DEMO_PERSONAS.COORDINATOR,
+    campusIds: ['campus-isb-h8'],
+    regionIds: ['region-isb-ict'],
+  };
 }
 
 /**

@@ -1,28 +1,51 @@
 import { NextResponse } from 'next/server';
 import { dbStore } from '@/lib/demo-data';
-import { seedSupabase } from '@/scripts/seed-supabase';
 
 export const runtime = 'nodejs';
 
 export async function POST() {
   try {
-    // Reset in-memory fallback store
+    // 1. Immediately reset in-memory baseline (always succeeds and restores all 8 planted scenarios)
     dbStore.reset();
-    // Attempt Supabase direct sync
+
+    let syncedToDatabase = false;
+    let syncDetail = 'In-memory baseline restored';
+
+    // 2. Safely attempt Supabase database sync if available
     try {
-      await seedSupabase();
+      const { DbAdapter } = await import('@/lib/db-adapter');
+      const isConnected = await DbAdapter.checkConnection();
+      if (isConnected) {
+        const { seedSupabase } = await import('@/scripts/seed-supabase');
+        await seedSupabase();
+        syncedToDatabase = true;
+        syncDetail = 'Supabase database & in-memory baseline fully synchronized';
+      } else {
+        syncDetail = 'PostgreSQL database is offline or unreachable; in-memory demo data reset';
+      }
     } catch (seedErr: any) {
-      console.warn('[Seed Reset] Supabase direct seed skipped or running in background:', seedErr.message);
+      syncDetail = `Database sync skipped (${seedErr?.message || 'Offline mode'}); in-memory demo data reset`;
+      console.warn('[Seed Reset] Database sync skipped or running in background:', seedErr?.message);
     }
 
     return NextResponse.json({
       success: true,
-      activeDataLayer: 'Supabase/PostgreSQL',
+      activeDataLayer: syncedToDatabase ? 'Supabase/PostgreSQL' : 'In-memory fallback',
+      syncedToDatabase,
+      detail: syncDetail,
       message: 'Database baseline successfully reset to clean state with all planted patterns.',
       timestamp: new Date().toISOString(),
     });
   } catch (err: any) {
-    return NextResponse.json({ error: { code: 'RESET_FAILED', message: err.message } }, { status: 500 });
+    console.error('[Seed Reset Critical Error]:', err);
+    return NextResponse.json(
+      {
+        success: false,
+        error: { code: 'RESET_FAILED', message: err?.message || 'Failed to reset demo data' },
+      },
+      { status: 500 }
+    );
   }
 }
+
 

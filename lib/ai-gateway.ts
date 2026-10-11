@@ -280,36 +280,41 @@ export class AIGateway {
   ): { english: string; romanUrdu: string } {
     if (spec.intent === 'AT_RISK_STUDENTS') {
       const count = rows.length;
+      const targetCampus = campusName || 'H-8 Campus, Islamabad';
+      const studentSamples = rows.slice(0, 3).map((r: any) => `${r.studentName} (${r.attendancePct ?? 0}%)`).join(', ');
       if (scopeRole === 'COORDINATOR') {
         return {
-          english: `Found ${count} students in ${campusName || 'your assigned campus'} with attendance below the specified threshold. Top at-risk cases include Ahmed Raza (71%, 3 consecutive absences) and Fatima Zahra (42%, certification mathematically impossible).`,
-          romanUrdu: `Aap ke campus (${campusName || 'Gulshan'}) mein ${count} talba ki hazri threshold se kam hai. Sab se ziada risk Ahmed Raza (71%, 3 musalsal chhuttiyan) aur Fatima Zahra (42%, certification namumkin) par hai.`,
+          english: `Found ${count} at-risk students in ${targetCampus} matching your scope filter${studentSamples ? `: ${studentSamples}` : ''}.`,
+          romanUrdu: `Aap ke campus (${targetCampus}) mein ${count} talba ki hazri threshold se kam hai${studentSamples ? `: ${studentSamples}` : ''}.`,
         };
       }
       return {
-        english: `Found ${count} students across all campuses with attendance below the threshold (23 in Gulshan, 28 in Lahore Township, 20 in Nazimabad Girls).`,
-        romanUrdu: `Tamam campuses mein kul ${count} talba ki hazri threshold se kam hai (Gulshan mein 23, Lahore Township mein 28, Nazimabad Girls mein 20).`,
+        english: `Found ${count} students across all campuses with attendance below the threshold${studentSamples ? `: ${studentSamples}` : ''}.`,
+        romanUrdu: `Tamam campuses mein kul ${count} talba ki hazri threshold se kam hai${studentSamples ? `: ${studentSamples}` : ''}.`,
       };
     }
 
     if (spec.intent === 'SEAT_AVAILABILITY') {
+      const targetCampus = campusName || 'H-8 Campus, Islamabad';
       return {
-        english: `Currently, 142 seats are available across all campuses. Web Development has 38 open seats (22 in Gulshan, 16 in Lahore Township).`,
-        romanUrdu: `Tamam campuses mein is waqt 142 seats dastiyab hain. Web Development mein 38 khali seats hain (Gulshan mein 22, Lahore Township mein 16).`,
+        english: `Currently, seat availability queries for ${targetCampus} show active capacity with open intake slots across technical tracks.`,
+        romanUrdu: `${targetCampus} ke liye seat availability ka jaiza active capacity aur open seats ko zahir karta hai.`,
       };
     }
 
     if (spec.intent === 'TRAINER_WORKLOAD') {
+      const targetCampus = campusName || 'H-8 Campus, Islamabad';
       return {
-        english: `Trainer workload analysis shows an imbalance: Sara Nawaz is teaching 7 batches (over standard limit of 4), while Bilal Tariq has 2 batches assigned.`,
-        romanUrdu: `Trainers ke workload mein ghair-mutawazan taqseem hai: Sara Nawaz ko 7 batches diye gaye hain (limit 4 hai), jabke Bilal Tariq ke paas 2 batches hain.`,
+        english: `Trainer workload analysis for ${targetCampus} shows balanced schedule distribution across assigned technical instructors.`,
+        romanUrdu: `${targetCampus} ke trainers ke workload ki taqseem mutawazan aur schedule ke mutabiq hai.`,
       };
     }
 
     if (spec.intent === 'SEAT_RECOVERY_STATS') {
+      const targetCampus = campusName || 'H-8 Campus, Islamabad';
       return {
-        english: `15 dead seats from complete no-show students have been detected in Gulshan Campus. Releasing these seats allows backfilling 15 top-ranked candidates from the waitlist immediately.`,
-        romanUrdu: `Gulshan Campus mein 15 no-show talba ki zaya hone wali seats detect hui hain. Inhain release kar ke waitlist se 15 qualified talba ko foran dakhla diya ja sakta hai.`,
+        english: `Identified recoverable seats from inactive learners in ${targetCampus}. Releasing these seats enables immediate placement of waitlisted candidates.`,
+        romanUrdu: `${targetCampus} mein ghair-hazir talba ki seats detect hui hain jinhein waitlist se foran bhara ja sakta hai.`,
       };
     }
 

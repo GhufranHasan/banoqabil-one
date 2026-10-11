@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import * as XLSX from 'xlsx';
 import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
   Bot,
   CheckCircle2,
+  Download,
   Eye,
   FileClock,
   FileSpreadsheet,
@@ -60,6 +62,170 @@ export default function ImportsPage() {
   const [showFilterBar, setShowFilterBar] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'MAPPED' | 'REVIEW' | 'HIGH'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Excel file upload states
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [customFileInfo, setCustomFileInfo] = useState<{
+    name: string;
+    size: string;
+    rowCount: number;
+  } | null>(null);
+
+  async function parseAndUploadFile(file: File) {
+    if (!file) return;
+    const isExcelOrCsv = /\.(xlsx|xls|csv)$/i.test(file.name);
+    if (!isExcelOrCsv) {
+      toast.add({
+        title: 'Unsupported File Format',
+        description: 'Please upload an Excel spreadsheet (.xlsx, .xls) or CSV (.csv).',
+        type: 'error',
+      });
+      return;
+    }
+
+    setUploadingFile(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      if (!firstSheetName) {
+        throw new Error('Workbook contains no sheets');
+      }
+      const worksheet = workbook.Sheets[firstSheetName];
+      const rawRows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, { defval: '' });
+
+      if (rawRows.length === 0) {
+        toast.add({
+          title: 'Empty Spreadsheet',
+          description: 'The uploaded file does not contain any data rows.',
+          type: 'error',
+        });
+        setUploadingFile(false);
+        return;
+      }
+
+      const headers = Object.keys(rawRows[0]);
+      const fileSizeFormatted =
+        file.size > 1024 * 1024
+          ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+          : `${Math.round(file.size / 1024)} KB`;
+
+      // Post to /api/imports with extracted headers and sample rows
+      const res = await fetch('/api/imports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          headers,
+          rowsCount: rawRows.length,
+          rows: rawRows.slice(0, 50),
+        }),
+      });
+
+      const data = (await res.json()) as any;
+      if (data.success) {
+        setJobData(data.job);
+        setCustomFileInfo({
+          name: file.name,
+          size: fileSizeFormatted,
+          rowCount: rawRows.length,
+        });
+        setMessage(`Uploaded '${file.name}' (${rawRows.length.toLocaleString()} rows). Qwen AI mapped ${data.job.mappedColumnsCount}/${headers.length} columns.`);
+        toast.add({
+          title: 'Excel File Uploaded',
+          description: `Parsed ${rawRows.length.toLocaleString()} rows from ${file.name}. AI Schema mapping complete.`,
+          type: 'success',
+        });
+      } else {
+        throw new Error(data.error?.message || 'Failed to process import');
+      }
+    } catch (err: any) {
+      toast.add({
+        title: 'Upload Failed',
+        description: err?.message || 'Could not parse the Excel file.',
+        type: 'error',
+      });
+    } finally {
+      setUploadingFile(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (file) parseAndUploadFile(file);
+  }
+
+  function handleFileDrop(event: React.DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setIsDragging(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file) parseAndUploadFile(file);
+  }
+
+  function downloadSampleTemplate() {
+    try {
+      const sampleRows = [
+        {
+          'نام (Full Name)': 'Muhammad Daniyal',
+          'F/Name': 'Muhammad Tariq',
+          'CNIC No.': '61101-1234567-1',
+          'Phone Number': '0300-1234567',
+          'Select Course': 'Web Development',
+          'Batch Time': 'Morning (9-12)',
+          'Preferred Campus': 'H-8 Campus, Islamabad',
+          'City': 'Islamabad',
+          'Gender': 'Male',
+          'Has Laptop': 'Yes',
+          'Email Address': 'daniyal.tariq@example.pk',
+        },
+        {
+          'نام (Full Name)': 'Areeba Fatima',
+          'F/Name': 'Ghulam Murtaza',
+          'CNIC No.': '61101-9876543-2',
+          'Phone Number': '0312-7654321',
+          'Select Course': 'Graphic Design',
+          'Batch Time': 'Evening',
+          'Preferred Campus': 'H-8 Campus, Islamabad',
+          'City': 'Islamabad',
+          'Gender': 'Female',
+          'Has Laptop': 'Yes',
+          'Email Address': 'areeba.fatima@example.pk',
+        },
+        {
+          'نام (Full Name)': 'Hamza Abbasi',
+          'F/Name': 'Rashid Abbasi',
+          'CNIC No.': '61101-5554321-3',
+          'Phone Number': '0333-5554321',
+          'Select Course': 'Cyber Security',
+          'Batch Time': 'Morning',
+          'Preferred Campus': 'H-8 Campus, Islamabad',
+          'City': 'Islamabad',
+          'Gender': 'Male',
+          'Has Laptop': 'Yes',
+          'Email Address': 'hamza.abbasi@example.pk',
+        },
+      ];
+
+      const ws = XLSX.utils.json_to_sheet(sampleRows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Registrations');
+      XLSX.writeFile(wb, 'banoqabil_sample_registrations.xlsx');
+      toast.add({
+        title: 'Template Downloaded',
+        description: 'banoqabil_sample_registrations.xlsx saved successfully.',
+        type: 'success',
+      });
+    } catch (err: any) {
+      toast.add({
+        title: 'Download Failed',
+        description: err?.message || 'Could not generate sample file',
+        type: 'error',
+      });
+    }
+  }
 
   async function loadImportData(isManualRefresh = false) {
     setLoading(true);
@@ -202,6 +368,14 @@ export default function ImportsPage() {
         description="Upload your registration file and review Qwen-assisted mappings and canonicalization before batch allocation."
         actions={
           <>
+            <Button
+              onClick={() => fileInputRef.current?.click()}
+              className="bg-gradient-to-r from-[#08aa87] to-[#083b85] text-white shadow-sm"
+              disabled={uploadingFile}
+            >
+              <Upload className="size-3.5 mr-1" />
+              Upload Excel Sheet
+            </Button>
             <Button variant="outline" className="bg-white" onClick={() => loadImportData(true)} disabled={loading}>
               <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
               Re-run AI Mapping
@@ -226,6 +400,113 @@ export default function ImportsPage() {
 
       <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_300px]">
         <div className="min-w-0 space-y-4">
+          {/* INTERACTIVE EXCEL / CSV UPLOAD PANEL */}
+          <Panel
+            title="Upload Registration Spreadsheet"
+            subtitle="Upload .xlsx, .xls or .csv files with applicant registrations. Qwen AI automatically maps columns and normalizes course entries."
+            action={
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadSampleTemplate}
+                  className="bg-white text-xs text-slate-600 hover:text-emerald-700"
+                >
+                  <Download className="mr-1.5 size-3.5" />
+                  Download Sample Template (.xlsx)
+                </Button>
+                {customFileInfo && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setCustomFileInfo(null);
+                      loadImportData(true);
+                    }}
+                    className="bg-white text-xs text-slate-600 hover:text-emerald-700"
+                  >
+                    <RefreshCw className="mr-1.5 size-3.5" />
+                    Reset to Demo 1,000 Rows
+                  </Button>
+                )}
+              </div>
+            }
+          >
+            <div className="p-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleFileChange}
+                className="hidden"
+                id="excel-file-upload-input"
+              />
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleFileDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center transition ${
+                  isDragging
+                    ? 'border-emerald-500 bg-emerald-50/70 ring-4 ring-emerald-100'
+                    : 'border-slate-300 bg-slate-50/50 hover:border-emerald-400 hover:bg-emerald-50/20'
+                }`}
+              >
+                <div className="grid size-12 place-items-center rounded-2xl bg-white shadow-sm ring-1 ring-slate-200">
+                  {uploadingFile ? (
+                    <RefreshCw className="size-6 animate-spin text-emerald-600" />
+                  ) : (
+                    <FileSpreadsheet className="size-6 text-emerald-600" />
+                  )}
+                </div>
+
+                <div className="mt-3">
+                  <p className="text-sm font-bold text-[#0b1f4d]">
+                    {uploadingFile
+                      ? 'Parsing Excel Spreadsheet & running Qwen AI Schema Detection…'
+                      : customFileInfo
+                      ? `Active File: ${customFileInfo.name}`
+                      : 'Upload your Excel sheet (Click to browse or drag & drop)'}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Supports Microsoft Excel (<code className="rounded bg-slate-100 px-1 font-mono text-[11px]">.xlsx</code>, <code className="rounded bg-slate-100 px-1 font-mono text-[11px]">.xls</code>) or <code className="rounded bg-slate-100 px-1 font-mono text-[11px]">.csv</code> files up to 25MB
+                  </p>
+                </div>
+
+                {customFileInfo ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/90 px-3 py-1.5 text-xs text-emerald-800">
+                    <CheckCircle2 className="size-4 text-emerald-600" />
+                    <span className="font-semibold">{customFileInfo.name}</span>
+                    <span className="text-slate-400">·</span>
+                    <span>{customFileInfo.size}</span>
+                    <span className="text-slate-400">·</span>
+                    <span className="font-medium text-emerald-700">{customFileInfo.rowCount.toLocaleString()} rows</span>
+                    <Badge className="ml-1 bg-emerald-600 text-white text-[9px]">Active Upload</Badge>
+                  </div>
+                ) : (
+                  <div className="mt-3 flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="bg-gradient-to-r from-[#08aa87] to-[#083b85] text-white shadow-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        fileInputRef.current?.click();
+                      }}
+                    >
+                      <Upload className="mr-1.5 size-3.5" />
+                      Browse Excel File
+                    </Button>
+                    <span className="text-xs text-slate-400">or drop file anywhere in this box</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Panel>
+
           <Panel title="Upload Summary">
             <div className="grid gap-4 p-4 md:grid-cols-[1.6fr_repeat(4,1fr)]">
               <div className="flex items-center gap-3 border-b border-slate-100 pb-4 md:border-b-0 md:border-r md:pb-0 md:pr-4">

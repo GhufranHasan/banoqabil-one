@@ -9,10 +9,12 @@ import {
   Building2,
   CalendarDays,
   CheckCircle2,
+  FileSpreadsheet,
   GraduationCap,
   Layers3,
   MoreVertical,
   Send,
+  Upload,
   UsersRound,
 } from 'lucide-react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
@@ -429,35 +431,60 @@ const campusData: Record<string, CampusDashboardData> = {
 const chartConfig = { rate: { label: 'Average fill rate', color: '#1268ea' } } satisfies ChartConfig;
 
 export default function CoordinatorDashboard() {
-  const [selectedCampus, setSelectedCampus] = useState<string>('campus-gulshan');
+  // Coordinator Ahmad Saeed is strictly bound to H-8 Campus, Islamabad under RBAC isolation
+  const assignedCampus = 'campus-isb-h8';
+  const [selectedCampus, setSelectedCampus] = useState<string>(assignedCampus);
   const [prompt, setPrompt] = useState('');
   const [answer, setAnswer] = useState('');
+  const [loadingAi, setLoadingAi] = useState(false);
+  const [aiResult, setAiResult] = useState<{ english: string; urdu?: string } | null>(null);
 
   useEffect(() => {
-    // Read initially stored campus or default to Gulshan
-    const current = sessionStorage.getItem('bqone-demo-campus') || 'campus-gulshan';
-    setSelectedCampus(current);
-
-    // Listen to real-time campus selector change events from the header dropdown
-    const handleCampusChange = (e: any) => {
-      const newCampus = e.detail || 'campus-gulshan';
-      setSelectedCampus(newCampus);
-    };
-
-    window.addEventListener('bqone-campus-change', handleCampusChange);
-    return () => window.removeEventListener('bqone-campus-change', handleCampusChange);
+    // Strictly lock and persist H-8 Campus, Islamabad for Coordinator
+    sessionStorage.setItem('bqone-demo-campus', assignedCampus);
+    setSelectedCampus(assignedCampus);
   }, []);
 
-  const currentData = campusData[selectedCampus] || campusData['campus-gulshan'];
+  const currentData = campusData[assignedCampus];
 
   useEffect(() => {
     setAnswer(currentData.aiSummary);
-  }, [selectedCampus, currentData.aiSummary]);
+  }, [currentData.aiSummary]);
 
-  function ask(text = prompt) {
-    if (!text.trim()) return;
-    setAnswer(`For ${currentData.campusName}: ${currentData.atRiskStudents} students are at risk. ${currentData.seatsRecovered} seats recovered so far.`);
-    setPrompt('');
+  async function ask(text = prompt) {
+    const value = text.trim();
+    if (!value || loadingAi) return;
+    setPrompt(value);
+    setLoadingAi(true);
+
+    try {
+      const res = await fetch('/api/assistant/query', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-demo-role': 'Coordinator',
+          'x-demo-campus': assignedCampus,
+        },
+        body: JSON.stringify({ question: value }),
+      });
+      const data = (await res.json()) as any;
+      if (data.success && data.result) {
+        const eng = data.result.answer;
+        const urdu = data.result.answerUrdu;
+        setAnswer(eng);
+        setAiResult({ english: eng, urdu });
+      } else {
+        const fallbackAns = `Found ${currentData.atRiskStudents} at-risk students in ${currentData.campusName}. ${currentData.activeBatches} active batches are currently running.`;
+        setAnswer(fallbackAns);
+        setAiResult({ english: fallbackAns, urdu: `${currentData.campusName} mein ${currentData.atRiskStudents} talba ko foran follow-up ki zaroorat hai.` });
+      }
+    } catch {
+      const fallbackAns = `For ${currentData.campusName}: ${currentData.atRiskStudents} students need attention, ${currentData.seatsRecovered} seats recovered to date.`;
+      setAnswer(fallbackAns);
+      setAiResult({ english: fallbackAns, urdu: `${currentData.campusName} ke liye ${currentData.atRiskStudents} talba monitoring mein hain.` });
+    } finally {
+      setLoadingAi(false);
+    }
   }
 
   return (
@@ -465,7 +492,39 @@ export default function CoordinatorDashboard() {
       <PageHeader
         title="Coordinator Dashboard"
         description={`${currentData.campusName} — Operations overview & risk queue`}
+        actions={
+          <div className="flex items-center gap-2">
+            <Link href="/imports">
+              <Button size="sm" className="bg-[#08aa87] hover:bg-[#078f72] text-white gap-1.5 shadow-sm">
+                <Upload className="size-3.5" />
+                Upload Excel Sheet
+              </Button>
+            </Link>
+          </div>
+        }
       />
+
+      <div className="mb-4 rounded-lg border border-emerald-200/80 bg-gradient-to-r from-emerald-50/80 via-white to-blue-50/60 p-3.5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-[#0a2540]">
+        <div className="flex items-center gap-3">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-[#08aa87] text-white shadow-sm">
+            <FileSpreadsheet className="size-5" />
+          </div>
+          <div>
+            <div className="font-semibold text-[#16325d] text-sm">Upload Applicant Registration Spreadsheet</div>
+            <p className="text-[11px] text-slate-500">
+              Bulk intake new candidate applications via Excel (.xlsx, .xls) or CSV. Includes AI column mapping and duplicate detection.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link href="/imports">
+            <Button size="sm" className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs h-8 px-3 gap-1.5">
+              <Upload className="size-3.5" />
+              Upload Excel Sheet (.xlsx)
+            </Button>
+          </Link>
+        </div>
+      </div>
 
       <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_250px]">
         <div className="min-w-0">
@@ -572,15 +631,14 @@ export default function CoordinatorDashboard() {
                 {currentData.trainers.map(([initials, name, batches, value], index) => (
                   <div key={String(name)} className="grid grid-cols-[32px_1fr_74px_34px] items-center gap-2 text-[10px]">
                     <span
-                      className={`grid size-8 place-items-center rounded-full ${
-                        [
+                      className={`grid size-8 place-items-center rounded-full ${[
                           'bg-emerald-50 text-emerald-700',
                           'bg-blue-50 text-blue-700',
                           'bg-red-50 text-red-600',
                           'bg-lime-50 text-lime-700',
                           'bg-cyan-50 text-cyan-700',
                         ][index % 5]
-                      }`}
+                        }`}
                     >
                       {initials}
                     </span>
@@ -646,10 +704,16 @@ export default function CoordinatorDashboard() {
               <Input
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
-                placeholder="Ask anything…"
+                placeholder="Ask anything about students, batches, or attendance…"
                 className="h-14 pr-10 text-xs"
+                disabled={loadingAi}
               />
-              <button className="absolute right-3 top-1/2 -translate-y-1/2 text-[#0a1e4b]" aria-label="Send prompt">
+              <button
+                type="submit"
+                disabled={loadingAi || !prompt.trim()}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#0a1e4b] hover:text-emerald-700 disabled:opacity-40 transition-colors"
+                aria-label="Send prompt"
+              >
                 <Send className="size-5" />
               </button>
             </div>
@@ -659,12 +723,42 @@ export default function CoordinatorDashboard() {
                   type="button"
                   key={text}
                   onClick={() => ask(text)}
-                  className="rounded border border-slate-200 px-2 py-1 text-[8px] text-slate-500 hover:bg-slate-50"
+                  disabled={loadingAi}
+                  className="rounded border border-slate-200 bg-slate-50/80 px-2.5 py-1 text-[9px] font-medium text-slate-600 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-800 transition-colors disabled:opacity-50"
                 >
                   {text}
                 </button>
               ))}
             </div>
+
+            {loadingAi && (
+              <div className="mt-3.5 flex items-center gap-2 rounded-xl border border-emerald-300/80 bg-emerald-50/70 p-3 text-xs text-emerald-800 animate-pulse">
+                <Bot className="size-4 animate-spin text-emerald-600 shrink-0" />
+                <span>Querying {currentData.campusName} intelligence engine...</span>
+              </div>
+            )}
+
+            {aiResult && !loadingAi && (
+              <div className="mt-3.5 rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50/90 via-teal-50/60 to-blue-50/80 p-3.5 shadow-sm text-xs transition-all">
+                <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2 mb-2">
+                  <span className="flex items-center gap-1.5 font-bold text-[#0a1e4b]">
+                    <Bot className="size-4 text-emerald-600" />
+                    BanoQabil AI Response
+                  </span>
+                  <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-emerald-800 border border-emerald-300">
+                    {currentData.cityName} Scoped
+                  </span>
+                </div>
+                <p className="font-semibold text-slate-800 leading-relaxed text-[11px]">{aiResult.english}</p>
+                {aiResult.urdu && (
+                  <div className="mt-2 text-[10px] text-emerald-950 font-medium bg-white/80 p-2 rounded-lg border border-emerald-100/80 leading-relaxed">
+                    <span className="font-bold text-emerald-800 block mb-0.5">Roman Urdu:</span>
+                    {aiResult.urdu}
+                  </div>
+                )}
+              </div>
+            )}
+
             <p className="mt-4 flex items-center gap-1 text-[8px] text-slate-400">
               <CheckCircle2 className="size-3" />
               Real-time scoped data for {currentData.campusName}.

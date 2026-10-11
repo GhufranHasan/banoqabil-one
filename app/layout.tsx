@@ -42,6 +42,42 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                var isRO = function(e) {
+                  var m = (e && e.message) || (e && e.error && e.error.message) || String(e || '');
+                  return m.indexOf('ResizeObserver') !== -1;
+                };
+                window.addEventListener('error', function(event) {
+                  if (isRO(event)) {
+                    event.stopImmediatePropagation();
+                    event.preventDefault();
+                    return true;
+                  }
+                }, true);
+                window.addEventListener('unhandledrejection', function(event) {
+                  if (isRO(event.reason)) {
+                    event.stopImmediatePropagation();
+                    event.preventDefault();
+                    return true;
+                  }
+                }, true);
+                var origOnError = window.onerror;
+                window.onerror = function(message, source, lineno, colno, error) {
+                  if (isRO(message) || isRO(error)) {
+                    return true;
+                  }
+                  if (origOnError) return origOnError.apply(this, arguments);
+                  return false;
+                };
+              })();
+            `,
+          }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

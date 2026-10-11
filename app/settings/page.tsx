@@ -24,10 +24,12 @@ export default function SettingsPage() {
       setRole(storedRole);
     }
     const storedCampus = sessionStorage.getItem('bqone-demo-campus');
-    if (storedCampus) {
+    if (storedRole === 'Coordinator' || storedRole === 'Teacher') {
+      setSelectedCampus('campus-isb-h8');
+    } else if (storedCampus) {
       setSelectedCampus(storedCampus);
     } else {
-      setSelectedCampus('campus-gulshan');
+      setSelectedCampus('all');
     }
   }, []);
 
@@ -169,30 +171,19 @@ export default function SettingsPage() {
             ) : (
               <>
                 <label className="block">
-                  <span className="mb-2 block text-xs font-semibold text-slate-700">Campus</span>
-                  <NativeSelect value={selectedCampus} onChange={handleCampusChange} className="w-full">
-                    <NativeSelectOptGroup label="Karachi Campuses">
-                      <NativeSelectOption value="campus-gulshan">Gulshan Campus, Karachi</NativeSelectOption>
-                      <NativeSelectOption value="campus-nazimabad-girls">Nazimabad Girls Campus, Karachi</NativeSelectOption>
-                    </NativeSelectOptGroup>
-                    <NativeSelectOptGroup label="Lahore Campuses">
-                      <NativeSelectOption value="campus-lahore-township">Lahore Township Campus</NativeSelectOption>
-                      <NativeSelectOption value="campus-iqbal-lahore">Iqbal Campus, Lahore</NativeSelectOption>
-                    </NativeSelectOptGroup>
-                    <NativeSelectOptGroup label="Islamabad Campuses">
-                      <NativeSelectOption value="campus-isb-i8">I-8 Campus (Jamia Masjid Al Furqan)</NativeSelectOption>
-                      <NativeSelectOption value="campus-isb-h8">H-8 Campus (Jamia Tafheem-ul-Quran)</NativeSelectOption>
-                      <NativeSelectOption value="campus-isb-g12">G-12 Campus (Lahore Leads Univ)</NativeSelectOption>
-                      <NativeSelectOption value="campus-isb-kyani">Kyani Road Campus (Bharakhu)</NativeSelectOption>
-                      <NativeSelectOption value="campus-isb-cbr">CBR Town Campus, Islamabad</NativeSelectOption>
-                      <NativeSelectOption value="campus-isb-kahuta">Kahuta Road Campus (Alkhidmat IT)</NativeSelectOption>
-                      <NativeSelectOption value="campus-isb-burma">Burma Town Campus, Islamabad</NativeSelectOption>
-                    </NativeSelectOptGroup>
-                    <NativeSelectOptGroup label="Rawalpindi Campuses & Hubs">
-                      <NativeSelectOption value="campus-rwp-rcc">Rawalpindi College of Commerce (Hub)</NativeSelectOption>
-                      <NativeSelectOption value="campus-rwp-satellite">Govt College Satellite Town, RWP</NativeSelectOption>
-                    </NativeSelectOptGroup>
-                  </NativeSelect>
+                  <span className="mb-2 block text-xs font-semibold text-slate-700">Assigned Campus</span>
+                  <div className="flex h-11 items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/70 px-3 text-xs font-semibold text-emerald-900">
+                    <span className="flex items-center gap-2">
+                      <ShieldCheck className="size-4 text-emerald-600" />
+                      H-8 Campus, Islamabad
+                    </span>
+                    <span className="rounded bg-emerald-200/80 px-2 py-0.5 text-[9px] font-bold text-emerald-800 uppercase tracking-wider">
+                      Locked by Admin
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-[10px] text-slate-500">
+                    Your account is assigned to H-8 Campus, Islamabad under RBAC policy. Coordinators cannot alter their campus jurisdiction.
+                  </p>
                 </label>
 
                 <label className="block">
